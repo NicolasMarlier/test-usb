@@ -1,0 +1,20 @@
+{
+  "name": "test-usb",
+  "version": "1.0.0",
+  "main": "index.js",
+  "license": "MIT",
+  "dependencies": {
+    "@midival/core": "^0.2.0",
+    "@midival/node": "^0.2.0",
+    "jzz": "^1.9.6",
+    "usb": "^2.17.0"
+  },
+  "scripts": {
+    "input": "node main.js",
+    "output": "node output.js"
+  },
+  "devDependencies": {
+    "ts-node": "^10.9.2",
+    "typescript": "^5.9.3"
+  }
+}

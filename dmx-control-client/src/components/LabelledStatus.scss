@@ -1,0 +1,28 @@
+.labelled-status {
+    display: flex;
+    padding: 5px 0;
+    column-gap: 5px;
+    .signal {
+        width: 20px;
+        height: 20px;
+        border-radius: 10px;
+        background-color: grey;
+        box-shadow: 2px 2px 0 #000000 inset, 5px 5px 0 #000000;
+        border: 2px solid #666666;
+        box-sizing: border-box;
+        
+        &.Green {
+            background-color: #8fdf61;
+        }
+        &.Orange {
+            background-color: #df9a61;
+        }
+        &.Red {
+            background-color: #df6161;
+        }
+    }
+    .label {
+        text-transform: uppercase;
+        line-height: 20px;
+    }
+}

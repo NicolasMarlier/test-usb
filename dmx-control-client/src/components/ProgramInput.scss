@@ -1,0 +1,16 @@
+.program-item {
+    height: 1.2em;
+    padding: 5px 5px 5px 25px;
+    .selected {
+        background-color: green;
+    }
+    display: flex;
+
+    input {
+        height: 1.2em;
+    }
+
+    input[type=number] {
+        width: 3em;
+    }
+}

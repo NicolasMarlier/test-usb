@@ -1,0 +1,20 @@
+.metronom {
+    background: gray;
+    .lit {
+        background: green;
+    }
+}
+input[type="file"] {
+  display: none;
+}
+
+.custom-file-upload {
+  border: 1px dashed #ccc;
+  display: inline-block;
+  padding: 6px 12px;
+  cursor: pointer;
+
+  &.dragging {
+    border: 1px solid #ccc;
+  }
+}   

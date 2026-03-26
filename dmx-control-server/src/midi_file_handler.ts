@@ -1,6 +1,7 @@
 import { Midi } from "@tonejs/midi";
 import fs from "fs"
 import path from "path"
+import { EventEmitter } from "events";
 
 export interface NoteEvent {
   tick: number;
@@ -11,14 +12,26 @@ export interface NoteEvent {
   track: number;
 }
 
-export class MidiFileHandler {
-  private midi: Midi;
-  private notesByTick: Map<number, NoteEvent[]> = new Map();
+// 24 PPQM per clock event
+// https://en.wikipedia.org/wiki/MIDI_beat_clock
+const CLOCK_PPQM = 24
+
+
+export class MidiFileHandler extends EventEmitter {
   public filePath: string;
+  private midi: Midi;
+  private isPlaying: boolean
+  currentTick: number
+  midiNotes: any[]
 
   constructor(filePath: string, data: Buffer) {
+    super()
+    console.log("NEW")
     this.filePath = filePath;
     this.midi = new Midi(data);
+    this.isPlaying = false
+    this.currentTick = 0
+    this.midiNotes = []
     this.indexNotes();
   }
 
@@ -29,24 +42,12 @@ export class MidiFileHandler {
 
 
   private indexNotes() {
-    this.midi.tracks.forEach((track, trackIndex) => {
-      track.notes.forEach((note) => {
-        const event: NoteEvent = {
-          tick: note.ticks,
-          durationTicks: note.durationTicks,
-          midi: note.midi,
-          velocity: note.velocity,
-          channel: track.channel ?? 0,
-          track: trackIndex,
-        };
+    if(!this.midi) return
 
-        if (!this.notesByTick.has(note.ticks)) {
-          this.notesByTick.set(note.ticks, []);
-        }
-
-        this.notesByTick.get(note.ticks)!.push(event);
-      });
-    });
+    this.midiNotes = this.midi
+            .tracks
+            .map((track: any) => track.notes)
+            .flat()
   }
 
   static fromUpload(
@@ -70,39 +71,6 @@ export class MidiFileHandler {
     return new MidiFileHandler(filePath, buffer);
   }
 
-  /**
-   * Get notes starting exactly at this tick
-   */
-  getNotesAtTick(tick: number): NoteEvent[] {
-    return this.notesByTick.get(tick) ?? [];
-  }
-
-  /**
-   * Get notes active at this tick (notes currently playing)
-   */
-  getActiveNotesAtTick(tick: number): NoteEvent[] {
-    const result: NoteEvent[] = [];
-
-    for (const notes of this.notesByTick.values()) {
-      for (const note of notes) {
-        const start = note.tick;
-        const end = note.tick + note.durationTicks;
-
-        if (tick >= start && tick < end) {
-          result.push(note);
-        }
-      }
-    }
-
-    return result;
-  }
-
-  /**
-   * Useful for sequencers
-   */
-  getAllTicks(): number[] {
-    return Array.from(this.notesByTick.keys()).sort((a, b) => a - b);
-  }
 
   getPPQ(): number {
     return this.midi.header.ppq;
@@ -111,5 +79,34 @@ export class MidiFileHandler {
   getTempo(): number {
     const tempo = this.midi.header.tempos[0];
     return tempo?.bpm ?? 120;
+  }
+
+  play = () => {
+    console.log('PLAY')
+    this.currentTick = -this.midi.header.ppq / CLOCK_PPQM
+    this.isPlaying = true
+  }
+
+  stop = () => {
+    console.log('STOP')
+    this.isPlaying = false
+  }
+
+  receiveClock = () => {
+      if(!this.isPlaying) { return false }
+      if(!this.midi) { return false }
+    
+      this.currentTick = this.currentTick + this.midi.header.ppq / CLOCK_PPQM
+
+      console.log(this.currentTick)
+
+      this.emitCurrentNotes()
+  }
+
+  emitCurrentNotes = () => {
+      this.midiNotes
+          .filter((note: any) => note.ticks >= this.currentTick && note.ticks < this.currentTick + CLOCK_PPQM)
+          .map((note: any) => `midi|${note.midi}`)
+          .forEach((signal) => this.emit('noteon', signal))
   }
 }

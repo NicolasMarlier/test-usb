@@ -11,7 +11,7 @@ export const MIDI_MODES = {
     MIDI_STOP: 252,
 }
 
-class Signal {
+class OldSignal {
     source: SignalSource
     key?: number
     intensity?: number
@@ -24,13 +24,13 @@ class Signal {
         this.midiMode = midiMode
     }
 
-    static matchSignal = (signalA: Signal | undefined, signalB: Signal | undefined) =>
+    static matchSignal = (signalA: OldSignal | undefined, signalB: OldSignal | undefined) =>
         signalA && signalB &&  
         signalA.source == signalB.source &&
         signalA.key == signalB.key
 
-    static matchAnySignal = (signalA: Signal | undefined, signals: Signal[]) =>
-        signals.find((signal) => Signal.matchSignal(signalA, signal)) !== undefined
+    static matchAnySignal = (signalA: OldSignal | undefined, signals: OldSignal[]) =>
+        signals.find((signal) => OldSignal.matchSignal(signalA, signal)) !== undefined
 
     representation = () => `${this.source}: ${this.key} ${this.intensity ? `(${this.intensity})` : ''}`
 
@@ -49,4 +49,4 @@ class Signal {
     
 }
 
-export default Signal
+export default OldSignal

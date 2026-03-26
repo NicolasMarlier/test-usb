@@ -4,23 +4,29 @@ const BASE_PATH = 'http://localhost:3000'
 
 export const listPrograms: () => Promise<Program[]> = () => axios
   .get(`${BASE_PATH}/programs`)
-  .then((response) => response.data as Program[])
+  .then((response) => response.data)
 
-export const createProgram: (dict: {name: string}) => Promise<void> = ({name}) => axios
+export const createProgram: (dict: {name: string}) => Promise<Program> = ({name}) => axios
   .post(`${BASE_PATH}/programs`, {name})
+  .then((response) => response.data)
 
-export const updateProgram: (program_id: number, program: Program) => Promise<void> = (program_id, program) => axios
-  .put(`${BASE_PATH}/programs/${program_id}`, program)
+export const updateProgram: (id: number, program: ProgramUpdateParams) => Promise<void> = (id, program) => axios
+  .put(`${BASE_PATH}/programs/${id}`, program)
 
-export const deleteProgram: (program_id: number) => Promise<void> = (program_id) => axios
-  .delete(`${BASE_PATH}/programs/${program_id}`)
+export const deleteProgram: (id: number) => Promise<void> = (id) => axios
+  .delete(`${BASE_PATH}/programs/${id}`)
+
+export const getProgramMidi: (program_id: number) => Promise<MidiData> = (program_id) => axios
+  .get(`${BASE_PATH}/programs/${program_id}/midi`)
+  .then((response) => response.data)
+
 
 export const uploadMidiToProgram: (program_id: number, file: File) => Promise<void> = (program_id, file) => {
     const formData = new FormData()
     formData.append("file", file)
 
-    return axios.post(
-    `${BASE_PATH}/programs/${program_id}/upload-midi`,
+    return axios.put(
+    `${BASE_PATH}/programs/${program_id}/midi`,
     formData,
     {
       headers: {
@@ -30,16 +36,23 @@ export const uploadMidiToProgram: (program_id: number, file: File) => Promise<vo
   );
 }
 
-export const listDmxButtons: (program_id: number) => Promise<DmxButtonConfig[]> = (program_id) => axios
+export const resetProgramMidi: (program_id: number) => Promise<void> = (program_id) => axios
+  .delete(`${BASE_PATH}/programs/${program_id}/midi`)
+
+
+export const listDmxButtons: (program_id: number) => Promise<DmxButton[]> = (program_id) => axios
   .get(`${BASE_PATH}/dmx_buttons`, {params: {program_id}})
-  .then((response) => response.data as DmxButtonConfig[])
+  .then((response) => response.data)
 
-export const createDmxButton: () => Promise<void> = () => axios
-  .post(`${BASE_PATH}/dmx_buttons`, {})
+export const createDmxButton: (params: DmxButtonCreationParams) => Promise<void> = (params) => axios
+  .post(`${BASE_PATH}/dmx_buttons`, params)
 
-export const updateDmxButton: (dmx_button_id: number, dmx_button: DmxButtonConfig) => Promise<void> = (dmx_button_id, dmx_button) => axios
-  .put(`${BASE_PATH}/dmx_buttons/${dmx_button_id}`, dmx_button)
+export const updateDmxButton: (id: string, params: DmxButtonUpdateParams) => Promise<void> = (id, params) => axios
+  .put(`${BASE_PATH}/dmx_buttons/${id}`, params)
 
-export const deleteDmxButton: (dmx_button_id: number) => Promise<void> = (dmx_button_id) => axios
-  .delete(`${BASE_PATH}/dmx_buttons/${dmx_button_id}`)
+export const playDmxButton: (id: string) => Promise<void> = (id) => axios
+  .post(`${BASE_PATH}/dmx_buttons/${id}/play`, {})
+
+export const deleteDmxButton: (id: string) => Promise<void> = (id) => axios
+  .delete(`${BASE_PATH}/dmx_buttons/${id}`)
 

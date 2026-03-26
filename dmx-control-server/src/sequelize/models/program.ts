@@ -3,6 +3,7 @@ import { Model, InferAttributes, InferCreationAttributes, CreationOptional, Data
 export class Program extends Model<InferAttributes<Program>, InferCreationAttributes<Program>> {
   declare id: CreationOptional<number>;
   declare name: string;
+  declare midi_filename: string | null;
 
   static initModel(sequelize: Sequelize): typeof Program {
     Program.init(
@@ -15,6 +16,10 @@ export class Program extends Model<InferAttributes<Program>, InferCreationAttrib
         name: {
           type: new DataTypes.STRING(128),
           allowNull: false,
+        },
+        midi_filename: {
+          type: new DataTypes.STRING(255),
+          allowNull: true,
         }
       },
       {

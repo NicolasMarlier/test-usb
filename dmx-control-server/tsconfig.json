@@ -45,5 +45,11 @@
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,
     "noImplicitAny": true,
-  }
+  },
+  "ts-node": {
+    "files": true
+  },
+  "files": [
+    "src/types.d.ts"
+  ],
 }

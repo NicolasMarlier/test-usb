@@ -1,13 +1,13 @@
 import DmxBoom from '../DMXEffects/DmxBoom'
 import DmxRun from '../DMXEffects/DmxRun'
 import DmxSet from '../DMXEffects/DmxSet'
-import Signal from './Signal'
+import OldSignal from './oldSignal'
 
 
 export const DmxEffectNatures = ['Boom', 'Set', 'Run']
 //const { updateDmxButton } = useDmxButtonsContext()
 
-class DmxButton {
+class OldDmxButton {
     dmxButtonConfig: DmxButtonConfig
     uuid: string
     startedAt: number | null
@@ -27,13 +27,13 @@ class DmxButton {
     }
 
     static fromConfig = (dmxButtonConfig: DmxButtonConfig) => {
-        const signal = !dmxButtonConfig.signal ? undefined : new Signal(
+        const signal = !dmxButtonConfig.signal ? undefined : new OldSignal(
             dmxButtonConfig.signal.source,
             dmxButtonConfig.signal.key,
             dmxButtonConfig.signal.intensity,
             dmxButtonConfig.signal.midiMode
         )
-        return new DmxButton({...dmxButtonConfig, ...{signal}})
+        return new OldDmxButton({...dmxButtonConfig, ...{signal}})
     }
     
     isPlaying = () => !!this.startedAt
@@ -63,4 +63,4 @@ class DmxButton {
     }
 }
 
-export default DmxButton
+export default OldDmxButton

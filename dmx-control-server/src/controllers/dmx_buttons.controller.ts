@@ -1,5 +1,6 @@
-import { Request, Response } from "express";
-const { models } = require('./sequelize');
+import { Request, Response } from "express"
+import { DmxButton } from "../sequelize/models/dmx_button";
+import { DmxLoop } from "../dmx_loop";
 
 export class DmxButtonController {
   // LIST
@@ -7,10 +8,12 @@ export class DmxButtonController {
     try {
       const { program_id } = req.query;
 
-      const where = program_id ? { program_id } : undefined;
+      if (!program_id || typeof program_id !== "string") {
+        return res.status(400).json({ error: "Invalid program_id parameter" });
+      }
 
-      const buttons = await models.findAll({
-        where,
+      const buttons = await DmxButton.findAll({
+        where: {program_id: program_id},
         order: [["created_at", "ASC"]],
       });
 
@@ -26,7 +29,10 @@ export class DmxButtonController {
     try {
       const { id } = req.params;
 
-      const button = await models.DmxButton.findByPk(id);
+      if (!id || typeof id !== "string") {
+        return res.status(400).json({ error: "Invalid id parameter" });
+      }
+      const button = await DmxButton.findByPk(id);
 
       if (!button) {
         return res.status(404).json({ error: "DmxButton not found" });
@@ -42,7 +48,7 @@ export class DmxButtonController {
   // CREATE
   static async create(req: Request, res: Response) {
     try {
-      const button = await models.DmxButton.create({
+      const button = await DmxButton.create({
         program_id: req.body.program_id,
         color: req.body.color,
         duration_ms: req.body.duration_ms,
@@ -51,6 +57,8 @@ export class DmxButtonController {
         signal: req.body.signal ?? null,
       });
 
+      DmxLoop.getInstance().resyncDmxButtons()
+      
       res.status(201).json(button);
     } catch (error) {
       console.error(error);
@@ -58,12 +66,37 @@ export class DmxButtonController {
     }
   }
 
+  // PLAY
+  static async play(req: Request, res: Response) {
+    try {
+      const { id } = req.params;
+      if (!id || typeof id !== "string") {
+        return res.status(400).json({ error: "Invalid id parameter" });
+      }
+
+      const button = await DmxButton.findByPk(id);
+
+      if(!button) throw 'Not found'
+
+      console.log("PLAY", button.id)
+      DmxLoop.getInstance().triggerDmxButton(button.id)
+
+      res.status(200).json(button);
+    } catch (error) {
+      console.error(error);
+      res.status(400).json({ error: "Failed to play DmxButton", message: `${error}` });
+    }
+  }
+
   // UPDATE
   static async update(req: Request, res: Response) {
     try {
       const { id } = req.params;
+      if (!id || typeof id !== "string") {
+        return res.status(400).json({ error: "Invalid id parameter" });
+      }
 
-      const button = await models.DmxButton.findByPk(id);
+      const button = await DmxButton.findByPk(id);
 
       if (!button) {
         return res.status(404).json({ error: "DmxButton not found" });
@@ -78,6 +111,8 @@ export class DmxButtonController {
         signal: req.body.signal ?? button.signal,
       });
 
+      DmxLoop.getInstance().resyncDmxButtons()
+
       res.json(button);
     } catch (error) {
       console.error(error);
@@ -89,8 +124,11 @@ export class DmxButtonController {
   static async destroy(req: Request, res: Response) {
     try {
       const { id } = req.params;
+      if (!id || typeof id !== "string") {
+        return res.status(400).json({ error: "Invalid id parameter" });
+      }
 
-      const button = await models.DmxButton.findByPk(id);
+      const button = await DmxButton.findByPk(id);
 
       if (!button) {
         return res.status(404).json({ error: "DmxButton not found" });

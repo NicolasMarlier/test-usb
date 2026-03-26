@@ -16,3 +16,16 @@ export const setDmxAt = (dmxHexSignal: string, index: number, value: number) => 
 }
 
 export const dmxSignalAt = (dmxHexSignal: string, i: number) => parseInt(dmxHexSignal.slice(2*i, 2*i + 2), 16) || 0
+
+export const MUSIC_KEYS = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', "A", 'A#', 'B']
+
+export const humanizeSignal = (signal: string) => {
+    const signalParts = signal.split('|')
+
+    const key = parseInt(signalParts[1], 10)
+
+    const midiKey = MUSIC_KEYS[key % MUSIC_KEYS.length]
+    const midiLevel = Math.floor(key / MUSIC_KEYS.length)
+
+    return [midiKey, midiLevel].join('')
+}

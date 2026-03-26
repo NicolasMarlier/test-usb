@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import useWebSocket, { ReadyState } from "react-use-websocket";
-import type DmxButton from "../models/DmxButton";
 import LedBar from "../DMXDevices/LedBar";
 import { useDmxButtonsContext } from "../DmxButtonsContext";
 
@@ -10,11 +9,10 @@ interface Props {
 }
 
 const WS_URL = `ws://127.0.0.1:8080`
-const TICK_INTERVAL = 20;
 
 const RealTimeConsole = (props: Props) => {
     const { setEnttecOpenUSBState, setWsState } = props
-    const { dmxButtons, selectedDmxButtonUuid, programs, setProgram } = useDmxButtonsContext()
+    const { dmxButtons, selectedDmxButtonId, programs, setProgram, setLastSignal, setMidiCurrentTick } = useDmxButtonsContext()
     const [dmxHexSignal, setDmxHexSignal] = useState("");
 
     const { sendJsonMessage, lastMessage, readyState } = useWebSocket(WS_URL, {
@@ -26,25 +24,18 @@ const RealTimeConsole = (props: Props) => {
       }
     })
 
-    const { updateDmxButton } = useDmxButtonsContext()
+    const { updateDmxButtonAndSync } = useDmxButtonsContext()
 
-    const selectedPods = dmxButtons.find(({uuid}) => selectedDmxButtonUuid == uuid)?.dmxButtonConfig.offsets || []
+    const selectedPods = dmxButtons.find(({id}) => selectedDmxButtonId == id)?.offsets || []
 
     const onSelectPod = (pod: number, selected: boolean) => {
-      if(selected) {
-        updateDmxButton(selectedDmxButtonUuid, {offsets: [...selectedPods, ...[pod]]})
-      }
-      else {
-        updateDmxButton(selectedDmxButtonUuid, {offsets: selectedPods.filter(offset => offset !=pod)})
-      }
-    }
+      if(!selectedDmxButtonId) return
 
-    const setDmx = (data: any) => {
-      if(readyState == ReadyState.OPEN) {
-        sendJsonMessage(data)
+      if(selected) {
+        updateDmxButtonAndSync(selectedDmxButtonId, {offsets: [...selectedPods, ...[pod]]})
       }
       else {
-        setDmxHexSignal(data.dmxHexSignal)
+        updateDmxButtonAndSync(selectedDmxButtonId, {offsets: selectedPods.filter(offset => offset !=pod)})
       }
     }
 
@@ -60,30 +51,6 @@ const RealTimeConsole = (props: Props) => {
       setWsState(connectionStatus);
     }, [readyState])
 
-    useEffect(() => {
-        const mainLoopInterval = setInterval(() => {
-          let outputDmxHexSignal = dmxHexSignal
-
-          
-          dmxButtons.forEach((dmxButton: DmxButton) => {
-            outputDmxHexSignal = dmxButton.transformDmxSignal(
-              outputDmxHexSignal,
-              () => {
-                updateDmxButton(dmxButton.uuid, {}, null)
-              }
-            )
-          })
-  
-          if(outputDmxHexSignal != dmxHexSignal) {
-            setDmx({
-              dmxHexSignal: outputDmxHexSignal
-            })
-          }
-          
-        }, TICK_INTERVAL);
-  
-        return () => clearInterval(mainLoopInterval);
-      }, [dmxButtons, setDmx, sendJsonMessage]);
 
     useEffect(() => {
       if(lastMessage !== null) {
@@ -93,17 +60,25 @@ const RealTimeConsole = (props: Props) => {
             enttecOpenDMXUSB: {
               state: state
             },
-            dmxHexSignal: dmxHexSignal
+            dmxHexSignal: dmxHexSignal,
+            midiCurrentTick: midiCurrentTick
           } = jsonMessage.data
           setEnttecOpenUSBState(state)
           setDmxHexSignal(dmxHexSignal)
+          setMidiCurrentTick(midiCurrentTick)
         }
-        if(jsonMessage.channel === 'control') {
-          console.log("CONTROL", jsonMessage)
+        else if(jsonMessage.channel === 'control') {
           if(jsonMessage.action == 'change_program') {
-            console.log(programs, jsonMessage.data.program_id)
             setProgram(programs.find((p) => p.id == jsonMessage.data.program_id))
           }
+        }
+        else if(jsonMessage.channel === 'midi_input') {
+          if(jsonMessage.action == 'note_on') {
+            setLastSignal(["midi", jsonMessage.data.data1, Date.now()].join('|'))
+          }
+        }
+        else {
+          console.log(jsonMessage)
         }
       }
     }, [lastMessage, programs])

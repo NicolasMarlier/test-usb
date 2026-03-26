@@ -1,11 +1,12 @@
 
+import { humanizeSignal } from '../utils'
 import './DmxButtonComponent.scss' 
 
 interface Props {
     onTap: () => void
     selected: boolean
     isPlaying: boolean
-    dmxButtonConfig: DmxButtonConfig
+    dmxButton: DmxButton
 }
 
 const DmxButtonComponent = (props: Props) => {
@@ -13,13 +14,14 @@ const DmxButtonComponent = (props: Props) => {
         onTap,
         selected,
         isPlaying,
-        dmxButtonConfig: dmxButtonConfig
+        dmxButton: dmxButton
     } = props
 
-    return <div className={`dmx-button ${isPlaying ? 'playing': ''} ${selected ? 'selected' : ''}`} onClick={onTap}>
+    return <div className={`dmx-button ${isPlaying ? 'playing': ''} ${selected ? 'selected' : ''}`}
+        onClick={onTap}>
             <div className="playing-light"/>
-            { dmxButtonConfig.signal && <div className="signal">
-                { dmxButtonConfig.signal.shortRepresentation() }
+            { dmxButton.signal && <div className="signal">
+                { humanizeSignal(dmxButton.signal) }
             </div> }
         </div>
 }

@@ -1,31 +1,57 @@
 import './ProgramSelect.scss'
 
-import { useEffect } from "react"
 import { useDmxButtonsContext } from '../DmxButtonsContext'
-import ProgramInput from './ProgramInput'
+import { useEffect, useRef, useState } from 'react'
+import ProgramSelectOption from './ProgramSelectOption'
 
 const ProgramSelect = () => {
-    const { program, programs, setProgram, newProgram, editProgram, destroyProgram} = useDmxButtonsContext()
-    
-    useEffect(() => {
-        if(program == undefined) {
-            setProgram(programs[0])   
-        }
-    }, [programs])
+    const { program, programs, createProgramAndSync } = useDmxButtonsContext()
 
+    const currentProgramId = useRef(program?.id)
+    const [showPicker, setShowPicker] = useState(false)
+
+    const [editingProgramId, setEditingProgramId] = useState(undefined as number | undefined)
+
+    const clickBackground = (e: any) => {
+        if(e.target == e.currentTarget) {
+            setShowPicker(false)
+        }
+    }
+    useEffect(() => {
+        if(!showPicker) {
+            setEditingProgramId(undefined)
+        }
+    }, [showPicker])
+
+    useEffect(() => {
+        if(currentProgramId.current != program?.id) {
+            currentProgramId.current = program?.id
+            setShowPicker(false)
+        }
+    }, [program])
     return <>
-        <div>
-            { programs.map((p) => {
-                return <ProgramInput
+            { program && <div
+                className="current-program"
+                onClick={() => setShowPicker(true)}>{program.id} | {program.name}
+            </div> }
+            { !program && <div
+                className="current-program  "
+                onClick={() => setShowPicker(true)}>
+                Pick a program
+            </div>}
+
+            { showPicker && <div className="picker-background" onClick={clickBackground}>
+                <div className={`picker ${editingProgramId ? 'editing' : 'not-editing'}`}>
+                { programs.map((p) => <ProgramSelectOption
                     key={p.id}
-                    selected={p.id == program?.id}
-                    onSelect={() => setProgram(p)}
                     program={p}
-                    onUpdate={(newP) => editProgram(p.id, newP)}
-                    onDelete={() => destroyProgram(p.id)}/>
-            })}
-            <div className='program-item' onClick={() => newProgram()}>Nouveau programme</div>
-        </div>
+                    isEditing={editingProgramId == p.id}
+                    setEditingProgramId={setEditingProgramId}/>)}        
+                <div className='picker-option new-program' onClick={() => createProgramAndSync()}>Nouveau programme</div>
+                
+                </div>
+                <div className='picker-bottom-shadow'/>
+            </div>}
     </>
 }
 

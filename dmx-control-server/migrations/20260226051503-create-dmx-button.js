@@ -1,18 +1,17 @@
 'use strict';
-
 /** @type {import('sequelize-cli').Migration} */
 module.exports = {
   async up (queryInterface, Sequelize) {
     await queryInterface.createTable("dmx_buttons", {
       id: {
-        type: DataTypes.UUID,
+        type: Sequelize.UUID,
         primaryKey: true,
         allowNull: false,
-        defaultValue: DataTypes.UUIDV4,
+        defaultValue: Sequelize.UUIDV4,
       },
 
       program_id: {
-        type: DataTypes.UUID,
+        type: Sequelize.INTEGER,
         allowNull: false,
         references: {
           model: "programs",
@@ -23,41 +22,41 @@ module.exports = {
       },
 
       color: {
-        type: DataTypes.STRING,
+        type: Sequelize.STRING,
         allowNull: false,
       },
 
       duration_ms: {
-        type: DataTypes.INTEGER,
+        type: Sequelize.INTEGER,
         allowNull: false,
       },
 
       offsets: {
-        type: DataTypes.JSONB,
+        type: Sequelize.JSONB,
         allowNull: false,
         defaultValue: [],
       },
 
       nature: {
-        type: DataTypes.STRING,
+        type: Sequelize.STRING,
         allowNull: false,
       },
 
       signal: {
-        type: DataTypes.STRING,
+        type: Sequelize.STRING,
         allowNull: true,
       },
 
       created_at: {
-        type: DataTypes.DATE,
+        type: Sequelize.DATE,
         allowNull: false,
-        defaultValue: DataTypes.NOW,
+        defaultValue: Sequelize.NOW,
       },
 
       updated_at: {
-        type: DataTypes.DATE,
+        type: Sequelize.DATE,
         allowNull: false,
-        defaultValue: DataTypes.NOW,
+        defaultValue: Sequelize.NOW,
       },
     });
   },

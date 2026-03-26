@@ -77,6 +77,7 @@ export class MidiRouter extends EventEmitter {
   private openPort(name: string, port: number) {
     const input = new midi.Input();
 
+    console.log("OPEN PORT")
     input.on("message", (deltaTime: number, message: number[]) => {
       const [status, data1, data2] = message;
 
@@ -94,16 +95,32 @@ export class MidiRouter extends EventEmitter {
 
       this.emit("message", msg)
 
-      if (msg.type === MIDI_MODES.NOTE_ON) {
+      if (msg.status === MIDI_MODES.NOTE_ON) {
         this.emit("noteon", msg)
       }
 
-      if (msg.type === MIDI_MODES.NOTE_OFF) {
+      else if (msg.status === MIDI_MODES.NOTE_OFF) {
         this.emit("noteoff", msg)
       }
 
-      if (msg.type === MIDI_MODES.PROGRAM_CHANGE) {
+      else if (msg.status === MIDI_MODES.PROGRAM_CHANGE) {
         this.emit("programchange", msg)
+      }
+
+      else if (msg.status === MIDI_MODES.MIDI_CLOCK) {
+        this.emit("clock", msg)
+      }
+
+      else if (msg.status === MIDI_MODES.MIDI_START) {
+        this.emit("midistart", msg)
+      }
+
+      else if (msg.status === MIDI_MODES.MIDI_STOP) {
+        this.emit("midistop", msg)
+      }
+
+      else {
+        console.log("Uncaught message", msg)
       }
     });
 

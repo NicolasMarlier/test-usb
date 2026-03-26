@@ -10,11 +10,11 @@ import {
 
 export class DmxButton extends Model<InferAttributes<DmxButton>, InferCreationAttributes<DmxButton>> {
   declare id: CreationOptional<string>
-  declare program_id: string
+  declare program_id: number
   declare color: string
   declare duration_ms: number
   declare offsets: number[]
-  declare nature: string
+  declare nature: 'Set' | 'Boom' | 'Run'
   declare signal: string | null
 
   static initModel(sequelize: Sequelize): typeof DmxButton {
@@ -34,22 +34,25 @@ export class DmxButton extends Model<InferAttributes<DmxButton>, InferCreationAt
         color: {
           type: DataTypes.STRING,
           allowNull: false,
+          defaultValue: "#ffffff",
         },
 
         duration_ms: {
           type: DataTypes.INTEGER,
           allowNull: false,
+          defaultValue: 500,
         },
 
         offsets: {
           type: DataTypes.JSONB,
           allowNull: false,
-          defaultValue: [],
+          defaultValue: [1, 5, 7],
         },
 
         nature: {
           type: DataTypes.STRING,
           allowNull: false,
+          defaultValue: 'Set'
         },
 
         signal: {

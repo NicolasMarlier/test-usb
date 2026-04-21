@@ -23,9 +23,9 @@ export const validateQueryParam = (req: Request, key: string) => {
     }
 
 
-export const handleErrors = (req: Request, res: Response, action: () => void) =>  {
+export const handleErrors = async(req: Request, res: Response, action: () => void) =>  {
     try {
-        action()
+        await action()
     } catch (error) {
         if (error instanceof InvalidParamError) {
             return res.status(400).json({ error: error.message });

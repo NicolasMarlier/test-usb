@@ -5,6 +5,7 @@ export class Program extends Model<InferAttributes<Program>, InferCreationAttrib
   declare id: CreationOptional<number>
   declare name: string
   declare bpm: CreationOptional<number>
+  declare audio_filename: CreationOptional<string | null>
 
   async getOrInitDmxMidi() {
     return await DmxMidi.findOne({
@@ -29,6 +30,10 @@ export class Program extends Model<InferAttributes<Program>, InferCreationAttrib
         },
         bpm: {
           type: DataTypes.INTEGER.UNSIGNED,
+          allowNull: true,
+        },
+        audio_filename: {
+          type: new DataTypes.STRING(256),
           allowNull: true,
         }
       },

@@ -28,7 +28,6 @@ export class DmxMidiHandler {
 
   setMidiNotes(midiNotes: MidiNote[]) {
     this.midiNotes = midiNotes
-    console.log(this.midiNotes)
   }
 
   play = () => {

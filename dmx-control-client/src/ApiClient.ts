@@ -42,3 +42,18 @@ export const playDmxButton: (id: string) => Promise<void> = (id) => axios
 export const deleteDmxButton: (id: string) => Promise<void> = (id) => axios
   .delete(`${BASE_PATH}/dmx_buttons/${id}`)
 
+export const uploadProgramAudio: (program_id: number, file: File) => Promise<void> = (program_id, file) => {
+  const formData = new FormData()
+  formData.append('file', file)
+  return axios.post(`${BASE_PATH}/programs/${program_id}/audio`, formData)
+}
+
+export const getProgramAudio: (program_id: number) => Promise<string | null> = async (program_id) => {
+  try {
+    const response = await axios.get(`${BASE_PATH}/programs/${program_id}/audio`, { responseType: 'blob' })
+    return URL.createObjectURL(response.data)
+  } catch {
+    return null
+  }
+}
+

@@ -4,6 +4,7 @@ import { MidiRouter } from './midi_router';
 import { DmxButtonController } from './controllers/dmx_buttons.controller';
 import { ProgramsController } from './controllers/programs.controller';
 import { DmxMidiController } from './controllers/dmx_midi.controller';
+import { ProgramsAudioController, audioUpload } from './controllers/programs_audio.controller';
 import { DMX_LOOP_EVENTS, DmxLoop } from './dmx_loop';
 import { initSequelize } from './sequelize/init_sequelize';
 
@@ -24,6 +25,10 @@ app.get('/programs', ProgramsController.list)
 app.post('/programs', ProgramsController.create)
 app.put('/programs/:id', ProgramsController.update)
 app.delete('/programs/:id', ProgramsController.destroy)
+
+app.post("/programs/:id/audio", audioUpload.single("file"), ProgramsAudioController.upload)
+app.delete("/programs/:id/audio", ProgramsAudioController.reset)
+app.get("/programs/:id/audio", ProgramsAudioController.getAudio)
 
 app.get("/programs/:program_id/dmx_midi", DmxMidiController.get)
 app.put("/programs/:program_id/dmx_midi", DmxMidiController.update)

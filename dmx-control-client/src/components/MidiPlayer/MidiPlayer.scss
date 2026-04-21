@@ -31,6 +31,11 @@ input[type="file"] {
   column-gap: 10px;
   flex-direction: row;
 }
+.midi-canvas-container.drag-over {
+  outline: 2px dashed #ffffff66;
+  background-color: #333;
+}
+
 .midi-canvas-container {
   border-radius: 5px;
   box-shadow: 3px 3px 0px #111 inset, 2px 2px 0px #333;

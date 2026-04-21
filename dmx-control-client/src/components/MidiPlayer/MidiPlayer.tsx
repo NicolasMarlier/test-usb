@@ -1,7 +1,7 @@
 import './MidiPlayer.scss'
 
 import { useEffect, useRef, useState } from 'react';
-import { updateProgramDmxMidi, getProgramDmxMidi } from '../../ApiClient';
+import { updateProgramDmxMidi, getProgramDmxMidi, uploadProgramAudio, getProgramAudio } from '../../ApiClient';
 import { useRealTimeContext } from '../../contexts/RealTimeContext';
 import { useDmxButtonsContext } from '../../contexts/DmxButtonsContext';
 
@@ -19,6 +19,8 @@ const MidiPlayer = () => {
     const [dmxMidi, setDmxMidi] = useState(undefined as DmxMidi | undefined)
 
     const [isRecording, setIsRecording] = useState(false)
+    const [isDraggingAudio, setIsDraggingAudio] = useState(false)
+    const [audioUrl, setAudioUrl] = useState<string | null>(null)
 
     const canvasRef = useRef(null);
     const canvasContainerRef = useRef(null);
@@ -38,6 +40,7 @@ const MidiPlayer = () => {
     useEffect(() => {
         setIsRecording(false)
         fetchDmxMidi()
+        fetchAudio()
     }, [program])
 
     useEffect(() => {
@@ -50,7 +53,7 @@ const MidiPlayer = () => {
 
     useEffect(() => {
         redrawMidiCanvas()
-    }, [ticksScroll])
+    }, [ticksScroll, audioUrl])
 
     
 
@@ -69,6 +72,8 @@ const MidiPlayer = () => {
     const pixelsOffsetToTicks = (pixelsOffset: number) => (pixelsOffset / BEAT_WIDTH_IN_PIXELS * PPQ + ticksScroll)
     
     const fetchDmxMidi = () => getProgramDmxMidi(program.id).then(setDmxMidi)
+
+    const fetchAudio = () => getProgramAudio(program.id).then(setAudioUrl)
 
     const updateProgramDmxMidiAndSync = (midiNotes: MidiNote[]) => updateProgramDmxMidi(program.id, {midi_notes: midiNotes}).then(fetchDmxMidi)   
 
@@ -164,6 +169,16 @@ const MidiPlayer = () => {
             1,
             canvas.offsetHeight
         )
+
+        if(!!audioUrl) {
+            ctx.fillStyle = "#f00";
+            ctx.fillRect(
+                0,
+                0,
+                10,
+                10
+            )
+        }
         
     }
 
@@ -238,6 +253,20 @@ const MidiPlayer = () => {
     }
     
 
+    const onDragOver = (event: React.DragEvent) => {
+        event.preventDefault()
+        setIsDraggingAudio(true)
+    }
+
+    const onDragLeave = () => setIsDraggingAudio(false)
+
+    const onDrop = (event: React.DragEvent) => {
+        event.preventDefault()
+        setIsDraggingAudio(false)
+        const file = event.dataTransfer.files[0]
+        if (file) uploadProgramAudio(program.id, file).then(fetchAudio)
+    }
+
     useEffect(() => {
         const handleResize = () => redrawMidiCanvas();
 
@@ -265,7 +294,10 @@ const MidiPlayer = () => {
             
             <div
                 ref={canvasContainerRef}
-                className="midi-canvas-container">
+                className={`midi-canvas-container ${isDraggingAudio ? 'drag-over' : ''}`}
+                onDragOver={onDragOver}
+                onDragLeave={onDragLeave}
+                onDrop={onDrop}>
                     <canvas
                         ref={canvasRef}
                         id="midi-canvas"

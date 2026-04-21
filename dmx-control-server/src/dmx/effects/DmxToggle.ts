@@ -1,9 +1,8 @@
 import { DmxButton } from "../../sequelize/models/dmx_button"
-import DmxEffect from "./DmxEffect"
-import { getDmxSignalAt, setDmxAt } from "./utils"
-import { colorHexToArray } from "./utils"
+import { DmxOneOffEffect } from "./DmxEffect"
+import { getDmxSignalAt } from "./utils"
 
-class DmxToggle extends DmxEffect {
+class DmxToggle extends DmxOneOffEffect {
     static transformDmxHexSignal = (
         dmxHexSignal: DmxHexSignal,
         _completeness: number,

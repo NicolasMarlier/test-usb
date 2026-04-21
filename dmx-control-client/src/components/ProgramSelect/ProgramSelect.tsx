@@ -5,10 +5,12 @@ import { useEffect, useRef, useState } from 'react'
 import ProgramSelectOption from './ProgramSelectOption'
 import { createProgram } from '../../ApiClient'
 
+const KEY_DOWN_ARROW_DOWN = 'ArrowDown'
+const KEY_DOWN_ARROW_UP = 'ArrowUp'
 const ProgramSelect = () => {
-    const { program, programs, syncPrograms, setCurrentProgramId } = useDmxButtonsContext()
+    const { program, programs, syncPrograms, currentProgramId, setCurrentProgramId } = useDmxButtonsContext()
 
-    const currentProgramId = useRef(program?.id)
+    const lastProgramId = useRef(currentProgramId)
     const [showPicker, setShowPicker] = useState(false)
 
     const [editingProgramId, setEditingProgramId] = useState(undefined as number | undefined)
@@ -23,6 +25,29 @@ const ProgramSelect = () => {
             setShowPicker(false)
         }
     }
+
+    const relativeProgramId = (index: number) => {
+        return programs[Math.max(
+            0,
+            Math.min(
+                programs.findIndex((p) => p.id == currentProgramId) + index,
+                programs.length - 1
+            )
+        )].id
+    }
+    
+
+    const handleKeyDown = (e: any) => {
+        if(programs.length == 0) { return }
+        
+        if(e.code === KEY_DOWN_ARROW_DOWN) {
+            setCurrentProgramId(relativeProgramId(1))
+        }
+        else if(e.code === KEY_DOWN_ARROW_UP) {
+            setCurrentProgramId(relativeProgramId(-1))
+        }
+    }
+
     useEffect(() => {
         if(!showPicker) {
             setEditingProgramId(undefined)
@@ -30,11 +55,18 @@ const ProgramSelect = () => {
     }, [showPicker])
 
     useEffect(() => {
-        if(currentProgramId.current != program?.id) {
-            currentProgramId.current = program?.id
+        if(lastProgramId.current != currentProgramId) {
+            lastProgramId.current = currentProgramId
             setShowPicker(false)
         }
-    }, [program])
+    }, [currentProgramId])
+
+    useEffect(() => {
+        document.addEventListener('keydown', handleKeyDown)
+        return () => {
+            document.removeEventListener("keydown", handleKeyDown);
+        };
+    }, [program, programs, currentProgramId])
     return <>
             { program && <div
                 className="current-program"

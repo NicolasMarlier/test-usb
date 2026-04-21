@@ -35,7 +35,7 @@ export class DmxLoop extends EventEmitter {
         this.current_program_id = current_program_id
         this.dmxMidiHandler = new DmxMidiHandler({
             onMidiKey: (midiKey) => {
-                console.log("YO", midiKey )
+                console.log("YO", midiKey)
                 this.triggerDmxButtonsByMidiKey(midiKey, {mock_midi_signal: true}) 
             }
                 
@@ -97,14 +97,15 @@ export class DmxLoop extends EventEmitter {
     applyDmxButtonToDmxSignal = (dmxButton: DmxButton, dmxHexSignal: string) => {
         const triggeredAt = this.dmx_buttons_triggered_at[dmxButton.id]
         if(!triggeredAt) return dmxHexSignal
-        const completeness = Math.min(1, (Date.now() - triggeredAt) / dmxButton.duration_ms);
-
+        
         const dmxEffect = {
             'Set': DmxSet,
             'Boom': DmxBoom,
             'Run': DmxRun,
             'Toggle': DmxToggle,
         }[dmxButton.nature]
+
+        const completeness = dmxEffect.computeCompleteness(dmxButton.duration_ms, triggeredAt)
 
         const newDmxHexSignal = dmxEffect.transformDmxHexSignal(
             dmxHexSignal,

@@ -50,6 +50,13 @@ export const RealTimeContextProvider = ({ children }: {children: React.ReactNode
     })
 
     useEffect(() => {
+      if(!!lastReceivedMidiKey) {
+        const intervalId = setTimeout(() => setLastReceivedMidiKey(undefined), 1000)
+        return () => clearInterval(intervalId)
+      }
+    }, [lastReceivedMidiKey])
+
+    useEffect(() => {
       if(lastMessage !== null) {
         const jsonMessage = JSON.parse(lastMessage.data)
         if(jsonMessage.channel === 'dmx') {

@@ -12,6 +12,11 @@ class DmxEffect {
         return dmxHexSignal
     }
 
+    static computeCompleteness = (durationMs: number, triggeredAt: number) => Math.min(
+        1,
+        (Date.now() - triggeredAt) / durationMs
+    )
+
     static setToColor = (redChannels: number[], color: string, dmxHexSignal: DmxHexSignal) => {
         let newSignal = dmxHexSignal
 
@@ -24,6 +29,11 @@ class DmxEffect {
         })
         return newSignal
     }
+}
+
+
+export class DmxOneOffEffect extends DmxEffect {
+    static computeCompleteness = (_durationMs: number, _triggeredAt: number) => 1
 }
 
 export default DmxEffect

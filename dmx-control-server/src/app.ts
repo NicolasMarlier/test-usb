@@ -140,6 +140,7 @@ DmxLoop.getInstance().on(DMX_LOOP_EVENTS.PROGRAM_CHANGE, (program_id: number) =>
       action: 'change_program',
       data: {program_id}
   }))
+  DmxLoop.getInstance().dmxMidiHandler.stop({reset: true})
 });
 
 DmxLoop.getInstance().on(DMX_LOOP_EVENTS.MOCK_MIDI_INPUT, (midi_note_midi: MidiKey) => {

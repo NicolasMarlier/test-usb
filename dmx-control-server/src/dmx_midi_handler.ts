@@ -36,8 +36,11 @@ export class DmxMidiHandler {
     this.isPlaying = true
   }
 
-  stop = () => {
+  stop = (options?: {reset?: true}) => {
     this.isPlaying = false
+    if(!!options?.reset) {
+      this.currentTick = 0
+    }
   }
 
   receiveClock = () => {

@@ -207,8 +207,6 @@ const MidiPlayer = () => {
 
         const midiNoteMidi = uniqueNoteMidis[Math.floor(y / height * uniqueNoteMidis.length)]
 
-        console.log("On canvas click", aimedTick, midiNoteMidi)
-
         addNoteAtTick(aimedTick, midiNoteMidi, {remove_if_exist: true})
     }
 

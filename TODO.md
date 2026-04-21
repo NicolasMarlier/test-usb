@@ -34,10 +34,10 @@
 [X] Move pod logic to channels
 
 - M5 Fixes
-[ ] Toggle should toggle
-[ ] Pressing recording should not record last 
-[ ] Human midi should diplay the right range
-
+[X] Toggle should toggle
+[X] Pressing recording should not record last 
+[X] Human midi should diplay the right range
+[X] Switch program should stop
 
 - M6 Full Midi Editor
 [ ] POC
@@ -49,6 +49,7 @@
 [ ] Ability to select multiple midi slot
 [ ] Ability to copy / past midi slots
 [ ] Playback wave form should be displayed
+[X] Navigating with arrow should navigate
 
 
 

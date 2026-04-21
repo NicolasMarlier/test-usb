@@ -4,6 +4,7 @@ import { DmxMidi } from './dmx_midi';
 export class Program extends Model<InferAttributes<Program>, InferCreationAttributes<Program>> {
   declare id: CreationOptional<number>
   declare name: string
+  declare bpm: CreationOptional<number>
 
   async getOrInitDmxMidi() {
     return await DmxMidi.findOne({
@@ -25,6 +26,10 @@ export class Program extends Model<InferAttributes<Program>, InferCreationAttrib
         name: {
           type: new DataTypes.STRING(128),
           allowNull: false,
+        },
+        bpm: {
+          type: DataTypes.INTEGER.UNSIGNED,
+          allowNull: true,
         }
       },
       {

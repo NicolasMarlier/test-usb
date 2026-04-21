@@ -46,7 +46,7 @@
     justify-content: center;
 
     .picker {
-        flex: 0 1 400px;
+        flex: 0 1 500px;
         height: 50%;
         background: #222;
 
@@ -86,7 +86,11 @@
                 }
 
                 &.name {
-                    width: 100px;
+                    width: 80px;
+                }
+
+                &.bpm {
+                    width: 60px;
                 }
             }
 

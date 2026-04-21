@@ -36,11 +36,13 @@ type DmxEffectNature = 'Boom' | 'Set' | 'Run' | 'Toggle'
 type Program = {
     name: string
     id: number
+    bpm?: number
 }
 
 type ProgramUpdateParams = {
     name?: string
     id?: number
+    bpm?: number
 }
 
 type MidiNote = {

@@ -31,7 +31,7 @@ export class ProgramsController {
     static async create(req: Request, res: Response) {
         handleErrors(req, res, async() => {
             const program = await Program
-                .create({name: req.body.name})
+                .create({name: req.body.name, bpm: req.body.bpm})
             await DmxMidi
                 .create({
                     program_id: program.id,
@@ -48,7 +48,7 @@ export class ProgramsController {
     static async update(req: Request, res: Response) {
         handleErrors(req, res, async() => {
             const program = await getProgram(req)
-            program.update({name: req.body.name, id: req.body.id})
+            program.update({name: req.body.name, id: req.body.id, bpm: req.body.bpm})
             res.json({status: 'ok'})
         })
     }

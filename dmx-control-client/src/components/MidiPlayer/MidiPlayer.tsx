@@ -28,6 +28,8 @@ const MidiPlayer = () => {
     const mouseDownInCanvas = useRef(undefined as {event: any, moved: boolean, ticksScroll: number} | undefined);
 
     const [ticksScroll, setTicksScroll] = useState(midiCurrentTick - BEATS_OFFSET)
+
+    const [audioWaveData, setAudioWaveData] = useState(new Uint8Array() as Uint8Array)
     
     useEffect(() => {
         if(!!lastReceivedMidiKey && isRecording) {
@@ -53,7 +55,7 @@ const MidiPlayer = () => {
 
     useEffect(() => {
         redrawMidiCanvas()
-    }, [ticksScroll, audioUrl])
+    }, [ticksScroll, audioWaveData])
 
     
 
@@ -66,6 +68,10 @@ const MidiPlayer = () => {
         };
     }, [dmxMidi])
 
+    useEffect(() => {
+        computeWave().then(setAudioWaveData)
+    }, [audioUrl])
+
     const ticksDurationToPixels = (ticksDuration: number) => ticksDuration * BEAT_WIDTH_IN_PIXELS / PPQ
     const ticksOffsetToPixels = (tick: number) => ticksDurationToPixels(tick -  ticksScroll)
 
@@ -77,7 +83,44 @@ const MidiPlayer = () => {
 
     const updateProgramDmxMidiAndSync = (midiNotes: MidiNote[]) => updateProgramDmxMidi(program.id, {midi_notes: midiNotes}).then(fetchDmxMidi)   
 
-    
+    const sampleSignal = (signal: Float32Array, blockSize=10) => {
+        const samples = Math.ceil(signal.length / blockSize)
+        const dataArray = new Uint8Array(samples)
+
+        signal.forEach((dataPoint, i) => {
+            dataArray[Math.round(i/blockSize)] = Math.max(
+                dataArray[Math.round(i/blockSize)],
+                Math.round(Math.abs(dataPoint) * 255)
+            )
+        })
+        return dataArray
+    }
+
+    const computeWave = async() => {
+        if(!audioUrl) { return new Uint8Array() }
+        if(!program.bpm) { return new Uint8Array() }
+        const audioCtx = new window.AudioContext()
+        const response = await fetch(audioUrl)
+        const arrayBuffer = await response.arrayBuffer()                                                                                                                                                       
+        const audioBuffer = await audioCtx.decodeAudioData(arrayBuffer)                                                                                                                                        
+        // audioBuffer.sampleRate is 44_100 or 48_000 (Hz), ie signal per second
+
+        // 1 second = SAMPLE_RATE datapoints
+        // BPM beats = 60 seconds
+        // 1 beat = PPQ ticks
+        // 1 tick = 60  * SAMPLE_RATE / (PPQ * BPM) datapoints
+
+        const dataPointsPerTick = 60 * audioBuffer.sampleRate / (PPQ * program.bpm)
+
+        console.log(audioBuffer.sampleRate)
+
+        
+        const channelDataLeft = audioBuffer.getChannelData(0)
+        const channelDataRight = audioBuffer.getChannelData(1)
+        const channelData = channelDataLeft.map((e, i) => (e + channelDataRight[i])/2);
+
+        return sampleSignal(channelData, dataPointsPerTick)
+    }
 
     const redrawMidiCanvas = () => {
         const canvas = canvasRef.current as any
@@ -110,6 +153,16 @@ const MidiPlayer = () => {
             width,
             height
         );
+
+        ctx.fillStyle = "#ffffff06";
+        audioWaveData.forEach((dataPoint, ticks) => {
+            ctx.fillRect(
+                ticksOffsetToPixels(ticks),
+                (height - dataPoint * height / 255) / 2,
+                1,
+                dataPoint * height / 255
+            )
+        })
 
         
         ctx.fillStyle = "#000000cc";
@@ -169,17 +222,6 @@ const MidiPlayer = () => {
             1,
             canvas.offsetHeight
         )
-
-        if(!!audioUrl) {
-            ctx.fillStyle = "#f00";
-            ctx.fillRect(
-                0,
-                0,
-                10,
-                10
-            )
-        }
-        
     }
 
     const handleMouseUp = () => {

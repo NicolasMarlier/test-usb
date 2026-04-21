@@ -1,9 +1,9 @@
 import { WebSocketServer, WebSocket } from 'ws';
 import { EnttecOpenDMXUSB } from './enttec_open_dmx_usb';
 import { MidiRouter } from './midi_router';
-import multer from "multer";
 import { DmxButtonController } from './controllers/dmx_buttons.controller';
 import { ProgramsController } from './controllers/programs.controller';
+import { DmxMidiController } from './controllers/dmx_midi.controller';
 import { DMX_LOOP_EVENTS, DmxLoop } from './dmx_loop';
 import { initSequelize } from './sequelize/init_sequelize';
 
@@ -16,7 +16,6 @@ const express = require('express')
 var cors = require('cors')
 
 const app = express()
-const upload = multer({ storage: multer.memoryStorage() });
 app.use(express.json());
 app.use(cors())
 const HTTP_PORT = 3000
@@ -26,17 +25,17 @@ app.post('/programs', ProgramsController.create)
 app.put('/programs/:id', ProgramsController.update)
 app.delete('/programs/:id', ProgramsController.destroy)
 
-app.get("/programs/:id/midi", ProgramsController.get_midi)
-app.put("/programs/:id/midi", upload.single("file"), ProgramsController.upload_midi)
-app.delete("/programs/:id/midi", ProgramsController.reset_midi)
-
+app.get("/programs/:program_id/dmx_midi", DmxMidiController.get)
+app.put("/programs/:program_id/dmx_midi", DmxMidiController.update)
 
 app.get("/dmx_buttons/", DmxButtonController.list);
-app.get("/dmx_buttons/:id", DmxButtonController.get);
 app.post("/dmx_buttons", DmxButtonController.create);
+app.get("/dmx_buttons/:id", DmxButtonController.get);
 app.post("/dmx_buttons/:id/play", DmxButtonController.play);
 app.put("/dmx_buttons/:id", DmxButtonController.update);
 app.delete("/dmx_buttons/:id", DmxButtonController.destroy);
+
+
 
 app.listen(HTTP_PORT, () => {
   console.log(`HTTP Server listening on port ${HTTP_PORT}`)
@@ -47,20 +46,31 @@ app.listen(HTTP_PORT, () => {
 // Midi Router
 console.log("Openning Midi Router")
 const midi_router = new MidiRouter() 
-midi_router.on('programchange', (e) => DmxLoop.getInstance().switchProgram(e.data1 + 1))
+midi_router.on('programchange', (e) => {
+  const programId = e.data1 + 1
+  DmxLoop.getInstance().switchProgram(programId)
+})
 midi_router.on('noteon', (e) => {
-  DmxLoop.getInstance().triggerDmxButtonMatchingSignal(e)
+  const midiKey = e.data1
+  const data: WSMidiNoteOnMessage = {
+    midi: midiKey
+  }
+  DmxLoop.getInstance().triggerDmxButtonsByMidiKey(midiKey)
   wsSendToAll(JSON.stringify({
       channel: 'midi_input',
       action: 'note_on',
-      data: e
+      data
   }))
 })
-midi_router.on('clock', () => DmxLoop.getInstance().midiFileHandler?.receiveClock())
-midi_router.on('midistart', () => DmxLoop.getInstance().midiFileHandler?.play())
-midi_router.on('midistop', () => DmxLoop.getInstance().midiFileHandler?.stop())
+midi_router.on('clock', () => {
+  DmxLoop.getInstance().dmxMidiHandler.receiveClock()
+})
+midi_router.on('midistart', () => DmxLoop.getInstance().dmxMidiHandler.play())
+midi_router.on('midistop', () => {
+  DmxLoop.getInstance().dmxMidiHandler.stop()
+})
 midi_router.startListenning()
-console.log("Openend")
+console.log("Opened")
 
 
 // DMXInterface
@@ -85,7 +95,7 @@ const sendStatus = (ws: WebSocket) => {
         state: enttec.state()
       },
       dmxHexSignal: enttec.dmxHexString,
-      midiCurrentTick: DmxLoop.getInstance().midiFileHandler?.currentTick
+      midiCurrentTick: DmxLoop.getInstance().dmxMidiHandler.currentTick
     }
   })))
 }
@@ -131,6 +141,17 @@ DmxLoop.getInstance().on(DMX_LOOP_EVENTS.PROGRAM_CHANGE, (program_id: number) =>
       data: {program_id}
   }))
 });
+
+DmxLoop.getInstance().on(DMX_LOOP_EVENTS.MOCK_MIDI_INPUT, (midi_note_midi: MidiKey) => {
+  const data: WSMidiNoteOnMessage = {
+    midi: midi_note_midi
+  }
+  wsSendToAll(JSON.stringify({
+      channel: 'midi_input',
+      action: 'note_on',
+      data
+  }))
+})
 
 DmxLoop.getInstance().start()
 

@@ -1,0 +1,15 @@
+.dmx-buttons {
+  display: grid;
+  grid-template-columns: repeat(6, 84px);
+  grid-template-rows: 84px 84px;
+  justify-content: space-between;
+  row-gap: 25px;
+  height: 200px;
+}
+
+@media (max-width: 700px) {
+  .dmx-buttons {
+      grid-template-columns: repeat(4, 84px);
+      height: 300px;
+  }  
+}

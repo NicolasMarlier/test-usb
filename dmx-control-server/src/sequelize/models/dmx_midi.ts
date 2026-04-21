@@ -1,0 +1,46 @@
+import {
+  Model,
+  DataTypes,
+  Sequelize,
+  CreationOptional,
+  InferAttributes,
+  InferCreationAttributes,
+} from "sequelize"
+
+export class DmxMidi extends Model<InferAttributes<DmxMidi>, InferCreationAttributes<DmxMidi>> {
+  declare id: CreationOptional<string>
+  declare program_id: number
+  declare midi_notes: MidiNote[]
+  
+  static initModel(sequelize: Sequelize): typeof DmxMidi {
+    DmxMidi.init(
+      {
+        id: {
+          type: DataTypes.UUID,
+          primaryKey: true,
+          defaultValue: DataTypes.UUIDV4,
+        },
+
+        program_id: {
+          type: DataTypes.INTEGER,
+          allowNull: false,
+        },
+
+        midi_notes: {
+          type: DataTypes.JSONB,
+          allowNull: false,
+          defaultValue: [],
+        },
+      },
+      {
+        sequelize,
+        tableName: "dmx_midis",
+        timestamps: true,
+        createdAt: "created_at",
+        updatedAt: "updated_at",
+      }
+    );
+
+    return DmxMidi;
+  }   
+}

@@ -1,79 +1,68 @@
 type USBDeviceState = 'Not connected' | 'Connected' | 'Initializing' | 'Identified'
 
-type DmxButtonPartialConfig = {
-    color?: number[]
-    duration?: number
-    offsets?: number[]
-    nature?: DmxEffectNature
-    signal?: Signal | undefined
-}
+type MidiKey = number
 
 type DmxButton = {
     id: string
     program_id: number
     color: string
     duration_ms: number
-    offsets: number[]
+    red_channels: number[]
     nature: DmxEffectNature
-    signal: string | undefined
+    triggering_midi_key: MidiKey | undefined
 }
 
 type DmxButtonCreationParams = {
     program_id: number
     color?: string
     duration_ms?: number
-    offsets?: number[]
+    red_channels?: number[]
     nature?: DmxEffectNature
-    signal?: string
+    triggering_midi_key?: MidiKey
 }
 
 type DmxButtonUpdateParams = {
     color?: string
     duration_ms?: number
-    offsets?: number[]
+    red_channels?: number[]
     nature?: DmxEffectNature
-    signal?: string
-}
-
-type DmxButtonConfig = {
-    color: number[]
-    duration: number
-    offsets: number[]
-    nature: DmxEffectNature
-    signal: Signal | undefined
+    triggering_midi_key?: MidiKey
 }
 
 type DmxHexSignal = string
 
-type DmxEffectNature = 'Boom' | 'Set' | 'Run'
+type DmxEffectNature = 'Boom' | 'Set' | 'Run' | 'Toggle'
 
 type Program = {
     name: string
-    midi_filename: string
     id: number
 }
 
 type ProgramUpdateParams = {
     name?: string
     id?: number
-    midi_filename?: string | null
-}
-
-type Signal = {
-    source: 'Keyboard' | 'Midi'
-    key?: number
-    intensity?: number
-    midiMode?: number
 }
 
 type MidiNote = {
     ticks: number
-    name: string
+    midi: number
     durationTicks: number
 }
 
-type MidiData = {
-    filename: string
-    tempo: number
-    notes: MidiNote[]
+type DmxMidi = {
+    midi_notes: MidiNote[]
+}
+
+type DmxMidiUpdateParams = {
+    midi_notes: MidiNote[]
+}
+
+type ReceivedMidiKey = {
+    midi: MidiKey,
+    at: number
+}
+
+
+type WSMidiNoteOnMessage = {
+    midi: MidiKey
 }

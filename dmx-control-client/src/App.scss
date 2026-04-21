@@ -36,23 +36,6 @@ h1 {
     box-sizing: border-box;
 
   }
-
-  .dmx-button-details-placeholder {
-    border-radius: 5px;
-    box-shadow: 3px 3px 0px #111 inset, 2px 2px 0px #333;
-    width: 100%;
-    height: 80px;
-
-    display: flex;
-    align-items: center;
-    justify-content: center;
-
-
-    font-size: 12px;
-    font-weight: 600;
-    color: #333;
-    text-transform: uppercase;
-  }
 }
 
 .left-and-right {
@@ -62,21 +45,6 @@ h1 {
   padding: 30px 0;
 }
 
-.dmx-buttons {
-      display: grid;
-      grid-template-columns: repeat(6, 84px);
-      grid-template-rows: 84px 84px;
-      justify-content: space-between;
-      row-gap: 25px;
-      height: 200px;
-    }
-
-@media (max-width: 700px) {
-  .dmx-buttons {
-      grid-template-columns: repeat(4, 84px);
-      height: 300px;
-  }  
-}
 @media (max-width: 800px) {
   .panels {
     .central-panel {
@@ -103,6 +71,14 @@ h1 {
     top: 1px;
     left: 1px;
     box-shadow: 4px 4px 0px #000000;
+  }
+
+  &.active {
+    top: 4px;
+    left: 4px;
+    box-shadow: none;
+    border: 2px solid #999;
+    box-shadow: 0 0 10px #ffffff44;
   }
 }
 

@@ -11,7 +11,10 @@
 [X] P3 Support vertical small width view
 [X] P3 Support small width edit button
 [X] P3 Support small width midi input
-[ ] Better looking edit button + shortcuts
+[X] Better looking edit button + shortcuts
+
+
+
 
 - M3 Full concert data
 [ ] Full concert .midis
@@ -19,7 +22,36 @@
 
 
 - M4 Delight
+[X] types.d.ts OK server
 [X] P3 Nice midi viewer in frontend
+[X] Get read of reset
+[X] Record from front
+[X] Midi in DB
+[X] Better controllers
+[X] Remove program midi filename
+[X] Move signal to midiKey
+[ ] Clean up
+[X] Move pod logic to channels
+
+- M5 Fixes
+[ ] Toggle should toggle
+[ ] Pressing recording should not record last 
+[ ] Human midi should diplay the right range
+
+
+- M6 Full Midi Editor
+[ ] POC
+[ ] MainStage Slave vs Master mode
+[ ] Ability to link an playback
+[ ] Playing playback should be linked to midi
+[ ] Ability to move the current tick
+[ ] Ability to hover a midi slot
+[ ] Ability to select multiple midi slot
+[ ] Ability to copy / past midi slots
+[ ] Playback wave form should be displayed
+
+
+
 
 
 

@@ -15,29 +15,15 @@ export const updateProgram: (id: number, program: ProgramUpdateParams) => Promis
 
 export const deleteProgram: (id: number) => Promise<void> = (id) => axios
   .delete(`${BASE_PATH}/programs/${id}`)
+  
 
-export const getProgramMidi: (program_id: number) => Promise<MidiData> = (program_id) => axios
-  .get(`${BASE_PATH}/programs/${program_id}/midi`)
+export const getProgramDmxMidi: (program_id: number) => Promise<DmxMidi> = (program_id) => axios
+  .get(`${BASE_PATH}/programs/${program_id}/dmx_midi`)
   .then((response) => response.data)
 
-
-export const uploadMidiToProgram: (program_id: number, file: File) => Promise<void> = (program_id, file) => {
-    const formData = new FormData()
-    formData.append("file", file)
-
-    return axios.put(
-    `${BASE_PATH}/programs/${program_id}/midi`,
-    formData,
-    {
-      headers: {
-        "Content-Type": "multipart/form-data",
-      },
-    }
-  );
-}
-
-export const resetProgramMidi: (program_id: number) => Promise<void> = (program_id) => axios
-  .delete(`${BASE_PATH}/programs/${program_id}/midi`)
+export const updateProgramDmxMidi: (program_id: number, params: DmxMidiUpdateParams) => Promise<DmxMidi> = (program_id, params) => axios
+  .put(`${BASE_PATH}/programs/${program_id}/dmx_midi`, params)
+  .then((response) => response.data)
 
 
 export const listDmxButtons: (program_id: number) => Promise<DmxButton[]> = (program_id) => axios

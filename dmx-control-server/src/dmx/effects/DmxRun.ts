@@ -9,22 +9,22 @@ class DmxRun extends DmxEffect {
         dmxButton: DmxButton
     ) => {
         let newSignal = dmxHexSignal
-        const spread = 2
+        const spread = 2 * 3
         
-        const startOffset = Math.min(...dmxButton.offsets) - 2
-        const endOffset = Math.max(...dmxButton.offsets) + 2
+        const startRedChannel = Math.min(...dmxButton.red_channels) - 2 * 3
+        const endRedChannel = Math.max(...dmxButton.red_channels) + 2 * 3
 
         
-        const center = startOffset + (endOffset - startOffset) * completeness
+        const center = startRedChannel + (endRedChannel - startRedChannel) * completeness
 
         const colorArray = colorHexToArray(dmxButton.color)
 
-        dmxButton.offsets.forEach(offset => {
+        dmxButton.red_channels.forEach(redChannel => {
 
-            const colorIntensity = Math.max(0, 1 - (Math.abs(center - offset) / spread))
-            newSignal = setDmxAt(newSignal, 1 + offset * 3 + 0, Math.floor(colorArray[0] * colorIntensity))
-            newSignal = setDmxAt(newSignal, 1 + offset * 3 + 1, Math.floor(colorArray[1] * colorIntensity))
-            newSignal = setDmxAt(newSignal, 1 + offset * 3 + 2, Math.floor(colorArray[2] * colorIntensity))
+            const colorIntensity = Math.max(0, 1 - (Math.abs(center - redChannel) / spread))
+            newSignal = setDmxAt(newSignal, redChannel + 0, Math.floor(colorArray[0] * colorIntensity))
+            newSignal = setDmxAt(newSignal, redChannel + 1, Math.floor(colorArray[1] * colorIntensity))
+            newSignal = setDmxAt(newSignal, redChannel + 2, Math.floor(colorArray[2] * colorIntensity))
         })
 
         return newSignal

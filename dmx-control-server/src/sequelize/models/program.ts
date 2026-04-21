@@ -1,9 +1,18 @@
-import { Model, InferAttributes, InferCreationAttributes, CreationOptional, DataTypes, Sequelize } from 'sequelize';
+import { Model, InferAttributes, InferCreationAttributes, CreationOptional, DataTypes, Sequelize, NonAttribute, HasOneGetAssociationMixin, HasOneSetAssociationMixin } from 'sequelize';
+import { DmxMidi } from './dmx_midi';
 
 export class Program extends Model<InferAttributes<Program>, InferCreationAttributes<Program>> {
-  declare id: CreationOptional<number>;
-  declare name: string;
-  declare midi_filename: string | null;
+  declare id: CreationOptional<number>
+  declare name: string
+
+  async getOrInitDmxMidi() {
+    return await DmxMidi.findOne({
+      where: {program_id: this.id}
+    }) || await DmxMidi.create({
+      program_id: this.id,
+      midi_notes: []
+    })
+  }
 
   static initModel(sequelize: Sequelize): typeof Program {
     Program.init(
@@ -16,10 +25,6 @@ export class Program extends Model<InferAttributes<Program>, InferCreationAttrib
         name: {
           type: new DataTypes.STRING(128),
           allowNull: false,
-        },
-        midi_filename: {
-          type: new DataTypes.STRING(255),
-          allowNull: true,
         }
       },
       {

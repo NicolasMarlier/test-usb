@@ -18,10 +18,10 @@ class DmxBoom extends DmxEffect {
         
         const colorArray = colorHexToArray(dmxButton.color)
         
-        dmxButton.offsets.forEach(offset => {
-            newSignal = setDmxAt(newSignal, 1 + offset * 3 + 0, Math.floor(colorArray[0] * colorIntensity))
-            newSignal = setDmxAt(newSignal, 1 + offset * 3 + 1, Math.floor(colorArray[1] * colorIntensity))
-            newSignal = setDmxAt(newSignal, 1 + offset * 3 + 2, Math.floor(colorArray[2] * colorIntensity))
+        dmxButton.red_channels.forEach(redChannel => {
+            newSignal = setDmxAt(newSignal, redChannel + 0, Math.floor(colorArray[0] * colorIntensity))
+            newSignal = setDmxAt(newSignal, redChannel + 1, Math.floor(colorArray[1] * colorIntensity))
+            newSignal = setDmxAt(newSignal, redChannel + 2, Math.floor(colorArray[2] * colorIntensity))
         })
 
         return newSignal

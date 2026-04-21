@@ -12,14 +12,21 @@ export interface MidiMessage {
   type: number
 }
 
+const range: (start: number, end: number) => number[] = (start, end) => {
+    if(start === end) return [start];
+    return [start, ...range(start + 1, end)];
+}
+
+// https://midi.org/expanded-midi-1-0-messages-list
 export const MIDI_MODES = {
-    NOTE_OFF: 128,
-    NOTE_ON: 144,
+    NOTE_OFF: range(128, 143),
+    NOTE_ON: range(144, 159),
     PROGRAM_CHANGE: 192,
     MIDI_CLOCK: 248,
     MIDI_START: 250,
     MIDI_CONTINUE: 251,
     MIDI_STOP: 252,
+    MIDI_ACTIVE_SENSING: 254,
 }
 
 type MidiHandler = (msg: MidiMessage) => void
@@ -65,6 +72,7 @@ export class MidiRouter extends EventEmitter {
       if (!this.inputs.has(name)) {
         this.openPort(name, i);
       }
+      
     }
 
     for (const name of this.inputs.keys()) {
@@ -77,8 +85,9 @@ export class MidiRouter extends EventEmitter {
   private openPort(name: string, port: number) {
     const input = new midi.Input();
 
-    console.log("OPEN PORT")
+    console.log(`Open Midi port ${port} for device ${name}`)
     input.on("message", (deltaTime: number, message: number[]) => {
+      //console.log(deltaTime, mes)
       const [status, data1, data2] = message;
 
       if(!status) { return }
@@ -95,11 +104,12 @@ export class MidiRouter extends EventEmitter {
 
       this.emit("message", msg)
 
-      if (msg.status === MIDI_MODES.NOTE_ON) {
+      if (MIDI_MODES.NOTE_ON.includes(msg.status)) {
+        console.log('Note on', msg)
         this.emit("noteon", msg)
       }
 
-      else if (msg.status === MIDI_MODES.NOTE_OFF) {
+      else if (MIDI_MODES.NOTE_OFF.includes(msg.status)) {
         this.emit("noteoff", msg)
       }
 
@@ -117,6 +127,10 @@ export class MidiRouter extends EventEmitter {
 
       else if (msg.status === MIDI_MODES.MIDI_STOP) {
         this.emit("midistop", msg)
+      }
+
+      else if (msg.status === MIDI_MODES.MIDI_ACTIVE_SENSING) {
+        // Nothing
       }
 
       else {

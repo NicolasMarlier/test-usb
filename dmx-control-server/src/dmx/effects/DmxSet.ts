@@ -9,16 +9,11 @@ class DmxSet extends DmxEffect {
         _completeness: number,
         dmxButton: DmxButton
     ) => {
-        let newSignal = dmxHexSignal
-
-        const colorArray = colorHexToArray(dmxButton.color)
-
-        dmxButton.offsets.forEach(offset => {
-            newSignal = setDmxAt(newSignal, 1 + offset * 3 + 0, Math.floor(colorArray[0]))
-            newSignal = setDmxAt(newSignal, 1 + offset * 3 + 1, Math.floor(colorArray[1]))
-            newSignal = setDmxAt(newSignal, 1 + offset * 3 + 2, Math.floor(colorArray[2]))
-        })
-        return newSignal
+        return DmxEffect.setToColor(
+            dmxButton.red_channels,
+            dmxButton.color,
+            dmxHexSignal
+        )
     }
 }
 export default DmxSet

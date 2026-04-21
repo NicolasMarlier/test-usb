@@ -2,4 +2,17 @@ type USBDeviceState = 'Not connected' | 'Connected' | 'Initializing' | 'Identifi
 
 type DmxHexSignal = string
 
-type DmxEffectNature = 'Boom' | 'Set' | 'Run'
+type DmxEffectNature = 'Boom' | 'Set' | 'Run' | 'Toggle'
+
+type MidiKey = number
+type MidiNote = {
+    ticks: number
+    midi: MidiKey
+    durationTicks: number
+}
+
+const message = jsonMessage.data as WSMidiNoteOnMessage
+
+type WSMidiNoteOnMessage = {
+    midi: MidiKey
+}

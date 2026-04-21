@@ -1,102 +1,63 @@
 import { Request, Response } from "express"
-import { MidiFileHandler } from "../midi_file_handler"
 import { Program } from "../sequelize/models/program";
-import { DmxLoop } from "../dmx_loop";
+import { handleErrors, NotFoundError, validateUrlParam } from "./application.controller";
+import { DmxMidi } from "../sequelize/models/dmx_midi";
+
+
+const getProgram = async(req: Request) => {
+  const id = validateUrlParam(req, 'id')
+  const program = await Program.findByPk(id);
+
+  if (!program) {
+    throw new NotFoundError("Program not found")
+  }
+  return program
+}
+
 
 export class ProgramsController {
 
     static async list(req: Request, res: Response) {
-        try {
-          const programs = await Program.findAll({order: [['id', 'ASC']]})
+        handleErrors(req, res, async() => {
+            const programs = await Program.findAll(
+                {order: [['id', 'ASC']]}
+            )
     
-          res.json(programs);
-        } catch (error) {
-          console.error(error);
-          res.status(500).json({ error: "Failed to fetch DMX buttons" });
-        }
+            res.json(programs);
+        })
     }
+      
 
     static async create(req: Request, res: Response) {
-        return Program
-            .create({name: req.body.name})
-            .then((program) => res.json({
+        handleErrors(req, res, async() => {
+            const program = await Program
+                .create({name: req.body.name})
+            await DmxMidi
+                .create({
+                    program_id: program.id,
+                    midi_notes: []
+                })
+    
+            res.json({
                 status: 'ok',
                 program: program
-            }))
+            })
+        })
     }
 
     static async update(req: Request, res: Response) {
-        console.log('YOYPYYYOOYOYOYO', {name: req.body.name, id: req.body.id})
-        Program.update({name: req.body.name, id: req.body.id}, {
-            where: { id: req.params.id}
-        }).then(() => res.json({status: 'ok'}))
+        handleErrors(req, res, async() => {
+            const program = await getProgram(req)
+            program.update({name: req.body.name, id: req.body.id})
+            res.json({status: 'ok'})
+        })
     }
 
     static async destroy(req: Request, res: Response) {
-        Program.destroy({
-            where: { id: req.params.id}
-        }).then(() => res.json({status: 'ok'}))
-    }
-
-    static async upload_midi(req: Request, res: Response) {
-        
-        try {
-            if (!req.file) {
-            return res.status(400).json({ error: "No file uploaded" });
-            }
-
-            const midi = MidiFileHandler.fromUpload(
-                req.file.buffer,
-                req.file.originalname,
-                "midi_files"
-            );
-
-            Program.update({midi_filename: midi.filePath}, {
-                where: { id: req.params.id}
-            }).then(() => res.json({
-                ppq: midi.getPPQ(),
-                tempo: midi.getTempo(),
-                message: "MIDI loaded successfully",
-            }))
-
-            
-        } catch (err) {
-            res.status(500).json({ error: "Invalid MIDI file" });
-        }
-    }
-
-    static async reset_midi(req: Request, res: Response) {
-        Program.update({midi_filename: null}, {
-            where: { id: req.params.id}
-        }).then(() => res.json({status: 'ok'}))
-    }
-
-    static async get_midi(req: Request, res: Response) {
-        
-        try {
-            const { id } = req.params;
-            if (!id || typeof id !== "string") {
-                return res.status(400).json({ error: "Invalid program_id parameter" });
-            }
-            const program = await Program.findByPk(id)
-            if(!program) {
-                res.status(404).json({ error: "Failed to fetch Program" });
-            }
-            else if(!program.midi_filename) {
-                res.status(404).json({ error: "No midi for program" });
-            }
-            else {
-                const midiFileHandler = MidiFileHandler.fromFile(program.midi_filename)
-                res.json({
-                    filename: program.midi_filename,
-                    tempo: midiFileHandler.getTempo(),
-                    notes: midiFileHandler.midiNotes
-                })
-            }
-        } catch (error) {
-          console.error(error);
-          res.status(404).json({ error: "Failed to fetch Program" });
-        }
-        
+        handleErrors(req, res, async() => {
+            const program = await getProgram(req)
+            await program.destroy();
+            res.json({ success: true });
+        })
     }
 }

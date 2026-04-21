@@ -13,9 +13,9 @@ export class DmxButton extends Model<InferAttributes<DmxButton>, InferCreationAt
   declare program_id: number
   declare color: string
   declare duration_ms: number
-  declare offsets: number[]
+  declare red_channels: number[]
   declare nature: 'Set' | 'Boom' | 'Run'
-  declare signal: string | null
+  declare triggering_midi_key: MidiKey | null
 
   static initModel(sequelize: Sequelize): typeof DmxButton {
     DmxButton.init(
@@ -43,7 +43,7 @@ export class DmxButton extends Model<InferAttributes<DmxButton>, InferCreationAt
           defaultValue: 500,
         },
 
-        offsets: {
+        red_channels: {
           type: DataTypes.JSONB,
           allowNull: false,
           defaultValue: [1, 5, 7],
@@ -55,8 +55,8 @@ export class DmxButton extends Model<InferAttributes<DmxButton>, InferCreationAt
           defaultValue: 'Set'
         },
 
-        signal: {
-          type: DataTypes.STRING,
+        triggering_midi_key: {
+          type: DataTypes.INTEGER,
           allowNull: true,
         },
       },

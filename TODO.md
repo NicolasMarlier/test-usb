@@ -40,15 +40,16 @@
 [X] Switch program should stop
 
 - M6 Full Midi Editor
-[ ] POC
+[X] POC
 [ ] MainStage Slave vs Master mode
-[ ] Ability to link an playback
+[X] Ability to link an playback
+[ ] Ability to unlink a playback
 [ ] Playing playback should be linked to midi
 [ ] Ability to move the current tick
 [ ] Ability to hover a midi slot
 [ ] Ability to select multiple midi slot
 [ ] Ability to copy / past midi slots
-[ ] Playback wave form should be displayed
+[X] Playback wave form should be displayed
 [X] Navigating with arrow should navigate
 
 

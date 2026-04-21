@@ -1,79 +1,46 @@
-.metronom {
-    background: gray;
-    .lit {
-        background: green;
-    }
-}
-input[type="file"] {
-  display: none;
-}
-
-.custom-file-upload, .midifile-button {
-  border: 2px solid #444;
-  border-radius: 5px;
-  box-shadow: 5px 5px 0px #111;
-  position: relative;
-  cursor: pointer;
-  padding: 2px 20px;
-  height: 24px;
-  display: block;
-
-  &:hover {
-      top: 1px;
-      left: 1px;
-      box-shadow: 4px 4px 0px #000000;  
-  }
-}   
-
 .midi-container {
   display: flex;
-  flex: 1 1 auto;
+  flex: 0 1 auto;
   column-gap: 10px;
   flex-direction: row;
-}
-.midi-canvas-container.drag-over {
-  outline: 2px dashed #ffffff66;
-  background-color: #333;
-}
+  height: 100px;
+  margin: 0 0 20px 0;
 
-.midi-canvas-container {
-  border-radius: 5px;
-  box-shadow: 3px 3px 0px #111 inset, 2px 2px 0px #333;
-  padding: 3px 0 0 3px;
-  height: 30px;
-  box-sizing: border-box;
-  flex: 1 1 300px;
-  background-color: #222;
-  overflow: hidden;
-  min-width: 0;
-  position: relative;
+  .midi-canvas-container {
+    border-radius: 5px;
+    box-shadow: 3px 3px 0px #111 inset, 2px 2px 0px #333;
+    padding: 3px 0 0 3px;
+    height: 100%;
+    box-sizing: border-box;
+    flex: 1 1 300px;
+    background-color: #222;
+    overflow: hidden;
+    min-width: 0;
+    position: relative;
 
-  .shadow-left {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 30%;
-    bottom: 0;
-    background: linear-gradient(90deg, #00000066, transparent);
-    z-index: 10;
+    canvas {
+      width: 100%;
+      height: 100%;
+    }
 
+    &.drag-over {
+      outline: 2px dashed #ffffff66;
+      background-color: #333;
+    }
   }
-  .shadow-right {
-    position: absolute;
-    top: 0;
-    right: 0;
-    width: 30%;
-    bottom: 0;
-    background: linear-gradient(90deg, transparent, #00000066);
-    z-index: 10;
+  .controls-panel {
+    width: 160px;
+    box-shadow: 3px 3px 0px #111 inset, 2px 2px 0px #333;
+    border-radius: 5px;
+    padding: 10px;
+
+    .label {
+      display: flex;
+      justify-content: space-around;
+      padding: 6px 0;
+      font-size: 12px;
+      align-items: center;
+      color: #ffffff66;
+    }
   }
-}
-
-.upload-midi-file-btn {
-  height: 32px;
-  flex: 1 0 auto;
-}
-
-canvas {
-  width: 100%;
 }

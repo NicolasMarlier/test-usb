@@ -4,6 +4,9 @@ import { useEffect, useRef, useState } from 'react';
 import { updateProgramDmxMidi, getProgramDmxMidi, uploadProgramAudio, getProgramAudio } from '../../ApiClient';
 import { useRealTimeContext } from '../../contexts/RealTimeContext';
 import { useDmxButtonsContext } from '../../contexts/DmxButtonsContext';
+import Toggle from '../Toggle/Toggle';
+import SmallButton from '../SmallButton/SmallButton';
+import { PlayIcon, TrashIcon, RecordIcon, StopIcon, PauseIcon } from './Icons.js'
 
 const BEATS_OFFSET = 1
 const BEAT_WIDTH_IN_PIXELS = 40
@@ -14,32 +17,38 @@ const MidiPlayer = () => {
     const { program } = useDmxButtonsContext()
     if(!program) return <></>
     
-    const { midiCurrentTick, lastReceivedMidiKey } = useRealTimeContext()
+    const { midiCurrentTick: serverMidiCurrentTick, lastReceivedMidiKey } = useRealTimeContext()
 
-    const [dmxMidi, setDmxMidi] = useState(undefined as DmxMidi | undefined)
+    const [dmxMidi, setDmxMidi] = useState<DmxMidi | undefined>(undefined)
 
     const [isRecording, setIsRecording] = useState(false)
     const [isDraggingAudio, setIsDraggingAudio] = useState(false)
-    const [audioUrl, setAudioUrl] = useState<string | null>(null)
+    const [audioUrl, setAudioUrl] = useState<string | undefined>(undefined)
 
     const canvasRef = useRef(null);
     const canvasContainerRef = useRef(null);
 
     const mouseDownInCanvas = useRef(undefined as {event: any, moved: boolean, ticksScroll: number} | undefined);
 
+    const [midiCurrentTick, setMidiCurrentTick] = useState(serverMidiCurrentTick)
+
     const [ticksScroll, setTicksScroll] = useState(midiCurrentTick - BEATS_OFFSET)
 
     const [audioWaveData, setAudioWaveData] = useState(new Uint8Array() as Uint8Array)
+
+    const [editMode, setEditMode] = useState(false)
+
+    const audio = useRef(new Audio())
     
     useEffect(() => {
         if(!!lastReceivedMidiKey && isRecording) {
-            console.log("YO", lastReceivedMidiKey)
             const midiKey = lastReceivedMidiKey.midi
             addNoteAtTick(midiCurrentTick, midiKey)
         }
     }, [lastReceivedMidiKey, isRecording])
 
     useEffect(() => {
+        setAudioUrl(undefined)
         setIsRecording(false)
         fetchDmxMidi()
         fetchAudio()
@@ -57,8 +66,6 @@ const MidiPlayer = () => {
         redrawMidiCanvas()
     }, [ticksScroll, audioWaveData])
 
-    
-
     useEffect(() => {
         document.addEventListener('mouseup', handleMouseUp)
         document.addEventListener('mousemove', handleMouseMove)
@@ -69,6 +76,7 @@ const MidiPlayer = () => {
     }, [dmxMidi])
 
     useEffect(() => {
+        audio.current = new Audio(audioUrl)
         computeWave().then(setAudioWaveData)
     }, [audioUrl])
 
@@ -79,7 +87,7 @@ const MidiPlayer = () => {
     
     const fetchDmxMidi = () => getProgramDmxMidi(program.id).then(setDmxMidi)
 
-    const fetchAudio = () => getProgramAudio(program.id).then(setAudioUrl)
+    const fetchAudio = () => getProgramAudio(program.id).then((audioUrl) => setAudioUrl(audioUrl || undefined))
 
     const updateProgramDmxMidiAndSync = (midiNotes: MidiNote[]) => updateProgramDmxMidi(program.id, {midi_notes: midiNotes}).then(fetchDmxMidi)   
 
@@ -111,8 +119,6 @@ const MidiPlayer = () => {
         // 1 tick = 60  * SAMPLE_RATE / (PPQ * BPM) datapoints
 
         const dataPointsPerTick = 60 * audioBuffer.sampleRate / (PPQ * program.bpm)
-
-        console.log(audioBuffer.sampleRate)
 
         
         const channelDataLeft = audioBuffer.getChannelData(0)
@@ -318,22 +324,25 @@ const MidiPlayer = () => {
         return () => window.removeEventListener('resize', handleResize);
     }, []);
 
-    const onChange = (_event: any) => {
-        //let file = event.target.files[0]
-        // TODO: Implement
-        //uploadMidiToProgramAndSync(file)
-        return
-    }
+    useEffect(() => {
+        let bpm = program.bpm
+        if(editMode && !!bpm) {
+            const audioInterval = setInterval(() => {
+                setMidiCurrentTick(Math.round(audio.current.currentTime * bpm / 60 * PPQ))
+            }, 30)
+            return () => clearInterval(audioInterval)
+        }
+    }, [editMode, program])
+    useEffect(() => {
+        if(!editMode) setMidiCurrentTick(serverMidiCurrentTick)
+    }, [editMode, serverMidiCurrentTick])
+
+
+    const isPlaying = !audio.current.paused && audio.current.currentTime > 0 && !audio.current.ended
 
     return (<>
-        <div className="scroller"/>
-        <div className="midi-container">
-            { false && <label htmlFor="midiFile"
-                className='empty-btn upload-midi-file-btn'>
-                { <>Click to upload a midi file</>}
-            </label>}
-            { false && <input id="midiFile" type="file" onChange={onChange} name="filename"/> }
-            
+        
+        <div className="midi-container">            
             <div
                 ref={canvasContainerRef}
                 className={`midi-canvas-container ${isDraggingAudio ? 'drag-over' : ''}`}
@@ -348,15 +357,43 @@ const MidiPlayer = () => {
                         onMouseDown={onCanvasMouseDown}
                         />
             </div>
-            { (dmxMidi?.midi_notes || []).length > 0 && <div className="btn" onClick={() => updateProgramDmxMidiAndSync([])}>
-                Reset
-            </div>}
+            
 
-            { <div
-                className={`btn ${isRecording ? 'active' : ''}`}
-                onClick={() => setIsRecording(!isRecording)}>
-                Record
-            </div> }
+            
+            <div className='controls-panel'>
+                <div className='label'>
+                    <Toggle
+                        value={editMode}
+                        onChange={setEditMode}/>
+                    EDIT MODE
+                </div>
+                <div className='label'>
+                    <SmallButton
+                        value={isRecording}
+                        onClick={() => setIsRecording(!isRecording)}>
+                        <RecordIcon/>
+                    </SmallButton>
+                    <SmallButton
+                        value={false}
+                        onClick={() => updateProgramDmxMidiAndSync([])}
+                        disabled={(dmxMidi?.midi_notes || []).length == 0}>
+                        <TrashIcon/>
+                    </SmallButton>
+                    <SmallButton
+                        value={isPlaying}
+                        onClick={() => {isPlaying ? audio.current.pause() : audio.current.play() }}
+                            disabled={!editMode}>
+                        { isPlaying ? <PauseIcon/> : <PlayIcon/> }
+                    </SmallButton>
+                    <SmallButton
+                        value={false}
+                        onClick={() => {audio.current.pause(); audio.current.currentTime = 0}}
+                        disabled={!editMode}>
+                        <StopIcon/>
+                    </SmallButton>
+                    
+                </div>
+            </div>
         </div>
         
     </>)

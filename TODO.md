@@ -41,14 +41,15 @@
 
 - M6 Full Midi Editor
 [X] POC
-[ ] MainStage Slave vs Master mode
+[X] MainStage Slave vs Master mode
 [X] Ability to link an playback
 [ ] Ability to unlink a playback
-[ ] Playing playback should be linked to midi
+[X] Playing playback should be linked to midi
 [ ] Ability to move the current tick
 [ ] Ability to hover a midi slot
 [ ] Ability to select multiple midi slot
 [ ] Ability to copy / past midi slots
+[X] Better-looking controls
 [X] Playback wave form should be displayed
 [X] Navigating with arrow should navigate
 

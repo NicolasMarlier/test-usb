@@ -11,12 +11,13 @@ function App() {
   return (
       <div className="panels">
         <div className="central-panel">
-          <Statuses/>
+          
           
           <div className='left-and-right'>
             <ProgramSelect/>
-            <MidiPlayer/>
+            <Statuses/>
           </div>
+          <MidiPlayer/>
 
           <DmxButtonsCollection/>
           

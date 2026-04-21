@@ -1,0 +1,20 @@
+#!/bin/bash
+
+ROOT=$(cd "$(dirname "$0")/.." && pwd)
+
+prefix_output() {
+  local label="$1"
+  while IFS= read -r line; do
+    echo "[$label] $line"
+  done
+}
+
+(cd "$ROOT/dmx-control-client" && yarn dev 2>&1 | prefix_output "client") &
+CLIENT_PID=$!
+
+(cd "$ROOT/dmx-control-server" && yarn dev 2>&1 | prefix_output "server") &
+SERVER_PID=$!
+
+trap "kill $CLIENT_PID $SERVER_PID 2>/dev/null" EXIT INT TERM
+
+wait $CLIENT_PID $SERVER_PID

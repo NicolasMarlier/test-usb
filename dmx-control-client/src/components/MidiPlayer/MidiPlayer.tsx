@@ -4,17 +4,17 @@ import { useEffect, useRef, useState } from 'react';
 import { updateProgramDmxMidi, getProgramDmxMidi, uploadProgramAudio, getProgramAudio } from '../../ApiClient';
 import { useRealTimeContext } from '../../contexts/RealTimeContext';
 import { useDmxButtonsContext } from '../../contexts/DmxButtonsContext';
-import Toggle from '../Toggle/Toggle';
-import SmallButton from '../SmallButton/SmallButton';
+import Toggle from '../DesignSystem/Toggle/Toggle';
+import SmallButton from '../DesignSystem/SmallButton/SmallButton';
 import { PlayIcon, TrashIcon, RecordIcon, StopIcon, PauseIcon } from './Icons.js'
+import { midiKeyToPixelsHeight, midiKeyToPixelsOffset, pixelsOffsetToMidiKey, pixelsOffsetToTicks, ticksDurationToPixels, ticksOffsetToPixels } from './utils.js';
 
 const BEATS_OFFSET = 1
-const BEAT_WIDTH_IN_PIXELS = 40
 
 const PPQ = 480
 
 const MidiPlayer = () => {
-    const { program } = useDmxButtonsContext()
+    const { program, dmxButtons } = useDmxButtonsContext()
     if(!program) return <></>
     
     const { midiCurrentTick: serverMidiCurrentTick, lastReceivedMidiKey } = useRealTimeContext()
@@ -28,6 +28,8 @@ const MidiPlayer = () => {
     const canvasRef = useRef(null);
     const canvasContainerRef = useRef(null);
 
+    const mouseOverPosition = useRef<{x: number, y: number} | undefined>(undefined)
+
     const mouseDownInCanvas = useRef(undefined as {event: any, moved: boolean, ticksScroll: number} | undefined);
 
     const [midiCurrentTick, setMidiCurrentTick] = useState(serverMidiCurrentTick)
@@ -39,6 +41,8 @@ const MidiPlayer = () => {
     const [editMode, setEditMode] = useState(false)
 
     const audio = useRef(new Audio())
+
+    const allMidiKeys = (dmxButtons.flatMap(({triggering_midi_key}) => triggering_midi_key) || []).toSorted() as MidiKey[]
     
     useEffect(() => {
         if(!!lastReceivedMidiKey && isRecording) {
@@ -52,6 +56,9 @@ const MidiPlayer = () => {
         setIsRecording(false)
         fetchDmxMidi()
         fetchAudio()
+        if(!program.bpm && editMode) {
+            setEditMode(false)
+        }
     }, [program])
 
     useEffect(() => {
@@ -80,16 +87,13 @@ const MidiPlayer = () => {
         computeWave().then(setAudioWaveData)
     }, [audioUrl])
 
-    const ticksDurationToPixels = (ticksDuration: number) => ticksDuration * BEAT_WIDTH_IN_PIXELS / PPQ
-    const ticksOffsetToPixels = (tick: number) => ticksDurationToPixels(tick -  ticksScroll)
 
-    const pixelsOffsetToTicks = (pixelsOffset: number) => (pixelsOffset / BEAT_WIDTH_IN_PIXELS * PPQ + ticksScroll)
     
     const fetchDmxMidi = () => getProgramDmxMidi(program.id).then(setDmxMidi)
 
     const fetchAudio = () => getProgramAudio(program.id).then((audioUrl) => setAudioUrl(audioUrl || undefined))
 
-    const updateProgramDmxMidiAndSync = (midiNotes: MidiNote[]) => updateProgramDmxMidi(program.id, {midi_notes: midiNotes}).then(fetchDmxMidi)   
+    const updateProgramDmxMidiAndSync = (midiNotes: MidiNote[]) => updateProgramDmxMidi(program.id, {midi_notes: midiNotes}).then(fetchDmxMidi)
 
     const sampleSignal = (signal: Float32Array, blockSize=10) => {
         const samples = Math.ceil(signal.length / blockSize)
@@ -145,13 +149,10 @@ const MidiPlayer = () => {
         canvas.height = Math.floor(height * dpr);
         
         ctx.scale(dpr, dpr);
-
-        
-        const uniqueNoteMidis = [...new Set(midiNotes.map(midiNote => midiNote.midi))].toSorted()
-        
-        const yScale = canvas.offsetHeight / Math.max(uniqueNoteMidis.length, 2);
+    
         
 
+        // Background
         ctx.fillStyle = "#222";
         ctx.fillRect(
             0,
@@ -160,70 +161,117 @@ const MidiPlayer = () => {
             height
         );
 
+
+        // Pre-Tick0 fill
+        ctx.fillStyle = "#000000cc";
+        ctx.fillRect(
+            ticksOffsetToPixels(-BEATS_OFFSET * PPQ, ticksScroll),
+            0,
+            ticksDurationToPixels(BEATS_OFFSET * PPQ),
+            height
+        );
+
+        // Audio wave
         ctx.fillStyle = "#ffffff06";
         audioWaveData.forEach((dataPoint, ticks) => {
             ctx.fillRect(
-                ticksOffsetToPixels(ticks),
+                ticksOffsetToPixels(ticks, ticksScroll),
                 (height - dataPoint * height / 255) / 2,
                 1,
                 dataPoint * height / 255
             )
         })
 
-        
-        ctx.fillStyle = "#000000cc";
-        ctx.fillRect(
-            ticksOffsetToPixels(-BEATS_OFFSET * PPQ),
-            0,
-            ticksDurationToPixels(BEATS_OFFSET * PPQ),
-            height
-        );
-
-        ctx.font = "20px Tahoma";
-        ctx.textAlign = "center"
-        ctx.textBaseline = "middle"
-
-
+        // Grid
         for(let tick=0; tick <= PPQ * 60 * 10; tick+= 1) {
             if(tick % PPQ == 0) {
                 ctx.fillStyle = "#000000";
                 ctx.fillRect(
-                    ticksOffsetToPixels(tick),
+                    ticksOffsetToPixels(tick, ticksScroll),
                     0,
                     1,
                     height
                 )
-                ctx.fillStyle = "#00000066";
-                ctx.fillText(tick / PPQ, ticksOffsetToPixels(tick + PPQ / 2), height/2);
             }
             else if(tick % (PPQ / 4) == 0) {
                 ctx.fillStyle = "#00000044";
                 ctx.fillRect(
-                    ticksOffsetToPixels(tick),
+                    ticksOffsetToPixels(tick, ticksScroll),
                     0,
                     1,
                     height
                 )
             }
         }
-    
+
+        // Horizontal grid
+        allMidiKeys.forEach(midiKey => {
+            ctx.fillStyle = "#00000022"
+            ctx.fillRect(
+                0,
+                midiKeyToPixelsOffset(midiKey, height, allMidiKeys),
+                width,
+                1
+            )
+            ctx.fillRect(
+                0,
+                midiKeyToPixelsOffset(midiKey, height, allMidiKeys) +
+                midiKeyToPixelsHeight(),
+                width,
+                1
+            )
+        })
         
+        
+
+        // Beat numbers
+        ctx.font = "14px Tahoma";
+        ctx.textAlign = "left"
+        ctx.textBaseline = "middle"
+        ctx.fillStyle = "#ffffff66";
+        for(let tick=0; tick <= PPQ * 60 * 10; tick+= 1) {
+            if(tick % PPQ == 0) {
+                ctx.fillText(tick / PPQ, ticksOffsetToPixels(tick, ticksScroll) + 5, 10);
+            }
+        }
+    
+
+        // Midi notes
         midiNotes.forEach((midiNote) => {
-            ctx.fillStyle = "#ffffff44";
+            ctx.fillStyle = "#ffffffaa";
+
+            // Fighlight when played
             if(midiCurrentTick >= midiNote.ticks && midiCurrentTick < midiNote.ticks + midiNote.durationTicks) {
-                ctx.fillStyle = "#ffffffaa";
+                ctx.fillStyle = "#ffffffcc";
             }
             ctx.fillRect(
-                ticksOffsetToPixels(midiNote.ticks) + 1,
-                uniqueNoteMidis.indexOf(midiNote.midi) * yScale,
+                ticksOffsetToPixels(midiNote.ticks, ticksScroll) + 1,
+                midiKeyToPixelsOffset(midiNote.midi, height, allMidiKeys),
                 ticksDurationToPixels(midiNote.durationTicks) - 1,
-                yScale - 1
+                midiKeyToPixelsHeight()
             )
         })
 
+        // Mouse over
+        if(mouseOverPosition.current) {
+            ctx.fillStyle = "#ffffff11";
+            const tick = pixelsOffsetToTicks(mouseOverPosition.current.x, ticksScroll, {magnet: true})
+            const aimedMidiKey = pixelsOffsetToMidiKey(mouseOverPosition.current.y, height, allMidiKeys)
+            if(aimedMidiKey) {
+                ctx.fillRect(
+                    ticksOffsetToPixels(tick, ticksScroll) + 1,
+                    midiKeyToPixelsOffset(aimedMidiKey, height, allMidiKeys),
+                    ticksDurationToPixels(PPQ / 4) - 1,
+                    midiKeyToPixelsHeight()
+                )
+            }
+            
+        }
+
+        // Current tick tracker
         ctx.fillStyle = "#fff";
         ctx.fillRect(
-            ticksOffsetToPixels(midiCurrentTick),
+            ticksOffsetToPixels(midiCurrentTick, ticksScroll),
             0,
             1,
             canvas.offsetHeight
@@ -249,6 +297,9 @@ const MidiPlayer = () => {
             
             setTicksScroll(Math.max(-BEATS_OFFSET * PPQ, mouseDownInCanvas.current.ticksScroll + (mouseDownInCanvas.current.event.screenX - event.screenX) * 30))
         }
+        else {
+            handleMoveOver(event)
+        }
     }
 
     const onCanvasMouseDown = (event: any) => {
@@ -256,21 +307,27 @@ const MidiPlayer = () => {
     }
 
     const onCanvasClick = (event: any) => {
-        const midiNotes = dmxMidi?.midi_notes || []
-
         const rect = event.target.getBoundingClientRect();
         const x = event.clientX - rect.left;
         const y = event.clientY - rect.top;
         const height = rect.height
         
         
-        const aimedTick = pixelsOffsetToTicks(x)
-        
-        const uniqueNoteMidis = [...new Set(midiNotes.map(midiNote => midiNote.midi))].toSorted()
+        const aimedTick = pixelsOffsetToTicks(x, ticksScroll)
 
-        const midiNoteMidi = uniqueNoteMidis[Math.floor(y / height * uniqueNoteMidis.length)]
+        const midiNoteMidi = pixelsOffsetToMidiKey(y, height, allMidiKeys)
 
         addNoteAtTick(aimedTick, midiNoteMidi, {remove_if_exist: true})
+    }
+
+    const handleMoveOver = (event: any) => {
+        const rect = event.target.getBoundingClientRect();
+
+        mouseOverPosition.current = {
+            x: event.clientX - rect.left,
+            y: event.clientY - rect.top
+        }
+        redrawMidiCanvas()
     }
 
     const addNoteAtTick = (tick: number, midiNoteMidi: number, options?:{remove_if_exist?: boolean}) => {
@@ -340,6 +397,11 @@ const MidiPlayer = () => {
 
     const isPlaying = !audio.current.paused && audio.current.currentTime > 0 && !audio.current.ended
 
+    const onScroll = (e: any) => {
+        console.log("ONSCROLL", e)
+
+    }
+
     return (<>
         
         <div className="midi-container">            
@@ -355,6 +417,7 @@ const MidiPlayer = () => {
                         width="300"
                         height="30"
                         onMouseDown={onCanvasMouseDown}
+                        onScroll={onScroll}
                         />
             </div>
             
@@ -364,7 +427,8 @@ const MidiPlayer = () => {
                 <div className='label'>
                     <Toggle
                         value={editMode}
-                        onChange={setEditMode}/>
+                        onChange={setEditMode}
+                        disabled={!program.bpm}/>
                     EDIT MODE
                 </div>
                 <div className='label'>
@@ -400,3 +464,4 @@ const MidiPlayer = () => {
 }
 
 export default MidiPlayer
+

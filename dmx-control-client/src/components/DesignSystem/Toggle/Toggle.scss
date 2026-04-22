@@ -1,8 +1,6 @@
 .toggle {
-    cursor: pointer;
     width: 60px;
     height: 30px;
-    background-color: #111;
     border-radius: 20px;
     position: relative;
     box-shadow: 0 0 10px #000000 inset;
@@ -31,6 +29,32 @@
     &:hover {
         .toggle-pin {
             transform: scale(1.05);
+        }
+    }
+
+    &.enabled {
+        cursor: pointer;
+        background-color: #111;
+        cursor: pointer;
+
+        svg {
+            fill: #ffffff66;
+            height: 12px;
+        }
+
+        &.active {
+            background-color: rgb(114, 203, 63);
+
+            svg {
+                fill: rgb(114, 203, 63);
+                height: 12px;
+            }
+        }
+        
+        &:hover {
+            .small-button-pin {
+                transform: scale(1.05);
+            }
         }
     }
 }

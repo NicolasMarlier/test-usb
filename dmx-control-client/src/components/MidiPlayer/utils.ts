@@ -21,13 +21,12 @@ export const pixelsOffsetToTicks = (pixelsOffset: number, ticksScroll: number, o
 
 
 export const midiKeyToPixelsOffset = (midiKey: MidiKey, height: number, midiKeys: MidiKey[]) => {    
-    return midiKeys.toSorted().indexOf(midiKey) * BEAT_WIDTH_IN_PIXELS / 4
-        + height / 2
-        - (midiKeys.length * BEAT_WIDTH_IN_PIXELS / 4) / 2
+    return midiKeys.toSorted().indexOf(midiKey) * midiKeyToPixelsHeight(height)
+        + height * 1 / 5
 }
 
-export const midiKeyToPixelsHeight = () => {
-    return BEAT_WIDTH_IN_PIXELS / 4
+export const midiKeyToPixelsHeight = (height: number) => {
+    return height * 2 / (5 * 6)
 }
 
 export const pixelsOffsetToMidiKey = (y: number, height: number, midiKeys: MidiKey[]) => (
@@ -35,9 +34,8 @@ export const pixelsOffsetToMidiKey = (y: number, height: number, midiKeys: MidiK
         Math.floor(
             (
                 y
-                + (midiKeys.length * BEAT_WIDTH_IN_PIXELS / 4) / 2
-                - height / 2
-            ) / (BEAT_WIDTH_IN_PIXELS / 4)
+                - height * 1 / 5
+            ) / midiKeyToPixelsHeight(height)
         )
     ]
 )

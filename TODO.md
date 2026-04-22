@@ -46,7 +46,7 @@
 [ ] Ability to unlink a playback
 [X] Playing playback should be linked to midi
 [ ] Ability to move the current tick
-[ ] Ability to hover a midi slot
+[X] Ability to hover a midi slot
 [ ] Ability to select multiple midi slot
 [ ] Ability to copy / past midi slots
 [X] Better-looking controls

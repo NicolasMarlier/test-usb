@@ -9,7 +9,7 @@ import SmallButton from '../DesignSystem/SmallButton/SmallButton';
 import { PlayIcon, TrashIcon, RecordIcon, StopIcon, PauseIcon } from './Icons.js'
 import { midiKeyToPixelsHeight, midiKeyToPixelsOffset, pixelsOffsetToMidiKey, pixelsOffsetToTicks, ticksDurationToPixels, ticksOffsetToPixels } from './utils.js';
 
-const BEATS_OFFSET = 1
+const BEATS_OFFSET = 0.1
 
 const PPQ = 480
 
@@ -25,24 +25,24 @@ const MidiPlayer = () => {
     const [isDraggingAudio, setIsDraggingAudio] = useState(false)
     const [audioUrl, setAudioUrl] = useState<string | undefined>(undefined)
 
-    const canvasRef = useRef(null);
-    const canvasContainerRef = useRef(null);
-
-    const mouseOverPosition = useRef<{x: number, y: number} | undefined>(undefined)
-
-    const mouseDownInCanvas = useRef(undefined as {event: any, moved: boolean, ticksScroll: number} | undefined);
+    const canvasRef = useRef<HTMLCanvasElement>(null);
+    const canvasContainerRef = useRef<HTMLDivElement>(null);
 
     const [midiCurrentTick, setMidiCurrentTick] = useState(serverMidiCurrentTick)
 
-    const [ticksScroll, setTicksScroll] = useState(midiCurrentTick - BEATS_OFFSET)
+    const [ticksScroll, setTicksScroll] = useState(midiCurrentTick - BEATS_OFFSET * PPQ)
 
     const [audioWaveData, setAudioWaveData] = useState(new Uint8Array() as Uint8Array)
 
     const [editMode, setEditMode] = useState(false)
 
+    const [aimedMidiNote, setAimedMidiNote] = useState<MidiNote | undefined>(undefined)
+
     const audio = useRef(new Audio())
 
     const allMidiKeys = (dmxButtons.flatMap(({triggering_midi_key}) => triggering_midi_key) || []).toSorted() as MidiKey[]
+
+    const currentSelection = useRef<{x0: number, y0: number, x1?: number, y1?: number} | undefined>(undefined)
     
     useEffect(() => {
         if(!!lastReceivedMidiKey && isRecording) {
@@ -66,8 +66,10 @@ const MidiPlayer = () => {
     }, [dmxMidi, isRecording])
 
     useEffect(() => {
-        setTicksScroll(midiCurrentTick - BEATS_OFFSET * PPQ)
-    }, [midiCurrentTick])
+        if(!editMode || isPlaying) {
+            setTicksScroll(midiCurrentTick - BEATS_OFFSET * PPQ)
+        }
+    }, [midiCurrentTick, editMode])
 
     useEffect(() => {
         redrawMidiCanvas()
@@ -80,13 +82,20 @@ const MidiPlayer = () => {
             document.removeEventListener("mouseup", handleMouseUp);
             document.removeEventListener("mousemove", handleMouseMove);
         };
-    }, [dmxMidi])
+    }, [dmxMidi, ticksScroll, editMode, aimedMidiNote])
 
     useEffect(() => {
         audio.current = new Audio(audioUrl)
         computeWave().then(setAudioWaveData)
     }, [audioUrl])
 
+    useEffect(() => {
+        redrawMidiCanvas()
+    }, [aimedMidiNote?.ticks, aimedMidiNote?.midi])
+
+    useEffect(() => {
+        redrawMidiCanvas()
+    }, [currentSelection.current?.x1, currentSelection.current?.y1])
 
     
     const fetchDmxMidi = () => getProgramDmxMidi(program.id).then(setDmxMidi)
@@ -133,12 +142,14 @@ const MidiPlayer = () => {
     }
 
     const redrawMidiCanvas = () => {
-        const canvas = canvasRef.current as any
+        const canvas = canvasRef.current
         if(!canvas) return;
         if(!dmxMidi) return;
-        const midiNotes = dmxMidi.midi_notes || []
 
         const ctx = canvas.getContext("2d")
+        if(!ctx) return
+
+        const midiNotes = dmxMidi.midi_notes || []
 
         const width = (canvasContainerRef.current as any).clientWidth;
         const height = (canvasContainerRef.current as any).clientHeight - 2;
@@ -153,7 +164,7 @@ const MidiPlayer = () => {
         
 
         // Background
-        ctx.fillStyle = "#222";
+        ctx.fillStyle = "#000";
         ctx.fillRect(
             0,
             0,
@@ -162,23 +173,24 @@ const MidiPlayer = () => {
         );
 
 
-        // Pre-Tick0 fill
-        ctx.fillStyle = "#000000cc";
+        // Midi track
+        ctx.fillStyle = "#222222";
         ctx.fillRect(
-            ticksOffsetToPixels(-BEATS_OFFSET * PPQ, ticksScroll),
-            0,
-            ticksDurationToPixels(BEATS_OFFSET * PPQ),
-            height
+            Math.max(0, ticksOffsetToPixels(0, ticksScroll)),
+            height / 5,
+            width,
+            2 * height / 5
         );
 
         // Audio wave
         ctx.fillStyle = "#ffffff06";
         audioWaveData.forEach((dataPoint, ticks) => {
+            const dataPointHeight = dataPoint * height * 2 / (255 * 5)
             ctx.fillRect(
                 ticksOffsetToPixels(ticks, ticksScroll),
-                (height - dataPoint * height / 255) / 2,
+                height * 4 / 5 - dataPointHeight / 2,
                 1,
-                dataPoint * height / 255
+                dataPointHeight
             )
         })
 
@@ -216,7 +228,7 @@ const MidiPlayer = () => {
             ctx.fillRect(
                 0,
                 midiKeyToPixelsOffset(midiKey, height, allMidiKeys) +
-                midiKeyToPixelsHeight(),
+                midiKeyToPixelsHeight(height),
                 width,
                 1
             )
@@ -231,7 +243,7 @@ const MidiPlayer = () => {
         ctx.fillStyle = "#ffffff66";
         for(let tick=0; tick <= PPQ * 60 * 10; tick+= 1) {
             if(tick % PPQ == 0) {
-                ctx.fillText(tick / PPQ, ticksOffsetToPixels(tick, ticksScroll) + 5, 10);
+                ctx.fillText(`${tick / PPQ}`, ticksOffsetToPixels(tick, ticksScroll) + 5, 10);
             }
         }
     
@@ -248,24 +260,19 @@ const MidiPlayer = () => {
                 ticksOffsetToPixels(midiNote.ticks, ticksScroll) + 1,
                 midiKeyToPixelsOffset(midiNote.midi, height, allMidiKeys),
                 ticksDurationToPixels(midiNote.durationTicks) - 1,
-                midiKeyToPixelsHeight()
+                midiKeyToPixelsHeight(height)
             )
         })
 
-        // Mouse over
-        if(mouseOverPosition.current) {
+        // Aimed midi note
+        if(aimedMidiNote) {
             ctx.fillStyle = "#ffffff11";
-            const tick = pixelsOffsetToTicks(mouseOverPosition.current.x, ticksScroll, {magnet: true})
-            const aimedMidiKey = pixelsOffsetToMidiKey(mouseOverPosition.current.y, height, allMidiKeys)
-            if(aimedMidiKey) {
                 ctx.fillRect(
-                    ticksOffsetToPixels(tick, ticksScroll) + 1,
-                    midiKeyToPixelsOffset(aimedMidiKey, height, allMidiKeys),
-                    ticksDurationToPixels(PPQ / 4) - 1,
-                    midiKeyToPixelsHeight()
-                )
-            }
-            
+                ticksOffsetToPixels(aimedMidiNote.ticks, ticksScroll) + 1,
+                midiKeyToPixelsOffset(aimedMidiNote.midi, height, allMidiKeys),
+                ticksDurationToPixels(aimedMidiNote.durationTicks) - 1,
+                midiKeyToPixelsHeight(height)
+            )
         }
 
         // Current tick tracker
@@ -276,26 +283,52 @@ const MidiPlayer = () => {
             1,
             canvas.offsetHeight
         )
+
+        // Selection
+        if(!!currentSelection.current && currentSelection.current.x1 && currentSelection.current.y1) {
+            ctx.strokeStyle = "#ffffff88";
+            ctx.strokeRect(
+                currentSelection.current.x0,
+                currentSelection.current.y0,
+                currentSelection.current.x1 - currentSelection.current.x0,
+                currentSelection.current.y1 - currentSelection.current.y0,
+            )
+        }
     }
 
     const handleMouseUp = () => {
-        if(!mouseDownInCanvas.current?.moved && mouseDownInCanvas?.current?.event) {
-            onCanvasClick(mouseDownInCanvas.current.event)
-        }
-        mouseDownInCanvas.current = undefined
+        onCanvasClick()
+        currentSelection.current = undefined
     }
 
     const handleMouseMove = (event: any) => {
-        if(mouseDownInCanvas.current !== undefined) {
-            if(event.screenX > mouseDownInCanvas.current.event.screenX + 2 || event.screenX < mouseDownInCanvas.current.event.screenX - 2) {
-                mouseDownInCanvas.current = {
-                    ...mouseDownInCanvas.current,
-                    ...{ moved: true }
-                }
+        if(!editMode) { return }
+        if(
+            (
+                currentSelection.current?.x1 && (
+                    currentSelection.current.x1 > currentSelection.current.x0 + 2 ||
+                    currentSelection.current.x1 < currentSelection.current.x0 - 2
+                )
+            ) ||
+            (
+                currentSelection.current?.y1 && (
+                    currentSelection.current.y1 > currentSelection.current.y0 + 2 ||
+                    currentSelection.current.y1 < currentSelection.current.y0 - 2
+                )
+            )
+        ) {
+            setAimedMidiNote(undefined)     
+        }
+        
+
+        if(currentSelection.current && canvasRef.current) {
+            const rect = canvasRef.current.getBoundingClientRect();
+            currentSelection.current = {
+                x0: currentSelection.current.x0,
+                y0: currentSelection.current.y0,
+                x1: event.clientX - rect.left,
+                y1: event.clientY - rect.top,
             }
-            
-            
-            setTicksScroll(Math.max(-BEATS_OFFSET * PPQ, mouseDownInCanvas.current.ticksScroll + (mouseDownInCanvas.current.event.screenX - event.screenX) * 30))
         }
         else {
             handleMoveOver(event)
@@ -303,31 +336,33 @@ const MidiPlayer = () => {
     }
 
     const onCanvasMouseDown = (event: any) => {
-        mouseDownInCanvas.current = {event: event, ticksScroll: ticksScroll, moved: false}
+        const rect = event.target.getBoundingClientRect();
+        currentSelection.current = {
+            x0: event.clientX - rect.left,
+            y0: event.clientY - rect.top,
+        }
     }
 
-    const onCanvasClick = (event: any) => {
-        const rect = event.target.getBoundingClientRect();
-        const x = event.clientX - rect.left;
-        const y = event.clientY - rect.top;
-        const height = rect.height
-        
-        
-        const aimedTick = pixelsOffsetToTicks(x, ticksScroll)
-
-        const midiNoteMidi = pixelsOffsetToMidiKey(y, height, allMidiKeys)
-
-        addNoteAtTick(aimedTick, midiNoteMidi, {remove_if_exist: true})
+    const onCanvasClick = () => {
+        if(!aimedMidiNote) { return }
+        addNoteAtTick(aimedMidiNote.ticks, aimedMidiNote.midi, {remove_if_exist: true})
     }
 
     const handleMoveOver = (event: any) => {
         const rect = event.target.getBoundingClientRect();
+        const height = rect.height
 
-        mouseOverPosition.current = {
-            x: event.clientX - rect.left,
-            y: event.clientY - rect.top
+        const midiKey = pixelsOffsetToMidiKey(event.clientY - rect.top, height, allMidiKeys)
+        if(!midiKey || !editMode) {
+            setAimedMidiNote(undefined)
         }
-        redrawMidiCanvas()
+        else {
+            setAimedMidiNote({
+                ticks: pixelsOffsetToTicks(event.clientX - rect.left, ticksScroll, {magnet: true}),
+                midi: midiKey,
+                durationTicks: PPQ / 4
+            })
+        }
     }
 
     const addNoteAtTick = (tick: number, midiNoteMidi: number, options?:{remove_if_exist?: boolean}) => {
@@ -381,30 +416,39 @@ const MidiPlayer = () => {
         return () => window.removeEventListener('resize', handleResize);
     }, []);
 
+    const isPlaying = !audio.current.paused && audio.current.currentTime > 0 && !audio.current.ended
+
     useEffect(() => {
         let bpm = program.bpm
-        if(editMode && !!bpm) {
+        if(editMode && isPlaying && !!bpm) {
             const audioInterval = setInterval(() => {
                 setMidiCurrentTick(Math.round(audio.current.currentTime * bpm / 60 * PPQ))
             }, 30)
             return () => clearInterval(audioInterval)
         }
-    }, [editMode, program])
+    }, [editMode, program, isPlaying])
     useEffect(() => {
         if(!editMode) setMidiCurrentTick(serverMidiCurrentTick)
     }, [editMode, serverMidiCurrentTick])
 
 
-    const isPlaying = !audio.current.paused && audio.current.currentTime > 0 && !audio.current.ended
+    
 
-    const onScroll = (e: any) => {
-        console.log("ONSCROLL", e)
-
-    }
+    useEffect(() => {
+        const container = canvasContainerRef.current
+        if (!container) return
+        if (!editMode) return
+        const handleWheel = (e: WheelEvent) => {
+            e.preventDefault()
+            setTicksScroll(prev => Math.max(-BEATS_OFFSET * PPQ, prev + (e.deltaX) * 10))
+        }
+        container.addEventListener('wheel', handleWheel, { passive: false })
+        return () => container.removeEventListener('wheel', handleWheel)
+    }, [editMode])
 
     return (<>
-        
-        <div className="midi-container">            
+
+        <div className="midi-container">
             <div
                 ref={canvasContainerRef}
                 className={`midi-canvas-container ${isDraggingAudio ? 'drag-over' : ''}`}
@@ -417,7 +461,6 @@ const MidiPlayer = () => {
                         width="300"
                         height="30"
                         onMouseDown={onCanvasMouseDown}
-                        onScroll={onScroll}
                         />
             </div>
             

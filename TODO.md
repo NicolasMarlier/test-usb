@@ -48,7 +48,7 @@
 [X] Ability to hover a midi slot
 [X] Ability to select multiple midi slot
 [X] Ability to delete multiple midi slot
-[ ] Ability to move the current tick
+[X] Ability to move the current tick
 [ ] Ability to copy / past midi slots
 [X] Better-looking controls
 [X] Playback wave form should be displayed

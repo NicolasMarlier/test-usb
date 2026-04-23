@@ -317,13 +317,15 @@ const MidiPlayer = () => {
         }
     }
 
-    const handleMouseUp = () => {
-        onCanvasClick()
+    const handleMouseUp = (event: MouseEvent) => {
+        onCanvasClick(event)
         currentSelection.current = undefined
     }
 
-    const handleMouseMove = (event: any) => {
+    const handleMouseMove = (event: MouseEvent) => {
         if(!editMode) { return }
+
+        // Is doing a bulk select
         if(
             currentSelection.current && (
                 currentSelection.current.x1 > currentSelection.current.x0 + 2 ||
@@ -335,7 +337,7 @@ const MidiPlayer = () => {
             setAimedMidiNote(undefined)     
         }
         
-
+        // Is doing a bulk select
         if(currentSelection.current && canvasRef.current) {
             const rect = canvasRef.current.getBoundingClientRect();
             currentSelection.current = {
@@ -350,8 +352,9 @@ const MidiPlayer = () => {
         }
     }
 
-    const onCanvasMouseDown = (event: any) => {
-        const rect = event.target.getBoundingClientRect();
+    const onCanvasMouseDown = (event: MouseEvent) => {
+        if(!canvasRef.current) return
+        const rect = canvasRef.current.getBoundingClientRect();
         currentSelection.current = {
             x0: event.clientX - rect.left,
             y0: event.clientY - rect.top,
@@ -360,7 +363,19 @@ const MidiPlayer = () => {
         }
     }
 
-    const onCanvasClick = () => {
+    const onCanvasClick = (event: MouseEvent) => {
+        if(!canvasRef.current) return
+        if(!editMode) return
+        const rect = canvasRef.current.getBoundingClientRect();
+        
+        // When in first fifth, setCurrentTick
+        if(event.clientY - rect.top >= 0 && event.clientY - rect.top < rect.height / 5) {
+            setMidiCurrentTick(
+                pixelsOffsetToTicks(event.clientX - rect.left, ticksScroll, {magnet: true, magnetMode: 'line'})
+            )
+            return
+        }
+
         if(!aimedMidiNote) { return }
         if(selectedNotes.current.length > 0) {
             selectedNotes.current = []

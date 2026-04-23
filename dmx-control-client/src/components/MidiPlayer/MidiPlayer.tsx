@@ -7,7 +7,7 @@ import { useDmxButtonsContext } from '../../contexts/DmxButtonsContext';
 import Toggle from '../DesignSystem/Toggle/Toggle';
 import SmallButton from '../DesignSystem/SmallButton/SmallButton';
 import { PlayIcon, TrashIcon, RecordIcon, StopIcon, PauseIcon } from './Icons.js'
-import { midiKeyToPixelsHeight, midiKeyToPixelsOffset, pixelsOffsetToMidiKey, pixelsOffsetToTicks, ticksDurationToPixels, ticksOffsetToPixels } from './utils.js';
+import { computedSelectedNotes, midiKeyToPixelsHeight, midiKeyToPixelsOffset, pixelsOffsetToMidiKey, pixelsOffsetToTicks, ticksDurationToPixels, ticksOffsetToPixels } from './utils.js';
 
 const BEATS_OFFSET = 0.1
 
@@ -42,7 +42,8 @@ const MidiPlayer = () => {
 
     const allMidiKeys = (dmxButtons.flatMap(({triggering_midi_key}) => triggering_midi_key) || []).toSorted() as MidiKey[]
 
-    const currentSelection = useRef<{x0: number, y0: number, x1?: number, y1?: number} | undefined>(undefined)
+    const currentSelection = useRef<{x0: number, y0: number, x1: number, y1: number} | undefined>(undefined)
+    const selectedNotes = useRef<MidiNote[]>([])
     
     useEffect(() => {
         if(!!lastReceivedMidiKey && isRecording) {
@@ -75,12 +76,24 @@ const MidiPlayer = () => {
         redrawMidiCanvas()
     }, [ticksScroll, audioWaveData])
 
+    const onKeyDown = (e: KeyboardEvent) => {
+        if(e.key == 'Backspace') {
+            if(dmxMidi?.midi_notes && selectedNotes.current.length > 0) {
+                updateProgramDmxMidiAndSync(dmxMidi?.midi_notes.filter(midiNote => (
+                    !selectedNotes.current.find(n => n.midi == midiNote.midi && n.ticks == midiNote.ticks)
+                )))
+            }
+        }
+    }
+
     useEffect(() => {
         document.addEventListener('mouseup', handleMouseUp)
         document.addEventListener('mousemove', handleMouseMove)
+        document.addEventListener("keydown", onKeyDown)
         return () => {
             document.removeEventListener("mouseup", handleMouseUp);
             document.removeEventListener("mousemove", handleMouseMove);
+            document.removeEventListener("keydown", onKeyDown)
         };
     }, [dmxMidi, ticksScroll, editMode, aimedMidiNote])
 
@@ -160,6 +173,7 @@ const MidiPlayer = () => {
         canvas.height = Math.floor(height * dpr);
         
         ctx.scale(dpr, dpr);
+        
     
         
 
@@ -249,11 +263,18 @@ const MidiPlayer = () => {
     
 
         // Midi notes
+        if(!!currentSelection.current) {
+            selectedNotes.current = computedSelectedNotes(currentSelection.current, midiNotes, height, allMidiKeys, ticksScroll)
+        }
+
         midiNotes.forEach((midiNote) => {
             ctx.fillStyle = "#ffffffaa";
 
             // Fighlight when played
-            if(midiCurrentTick >= midiNote.ticks && midiCurrentTick < midiNote.ticks + midiNote.durationTicks) {
+            if(selectedNotes.current.find((n) => midiNote.midi == n.midi && midiNote.ticks == n.ticks)) {
+                ctx.fillStyle = "#72cb3faa";
+            }
+            else if(midiCurrentTick >= midiNote.ticks && midiCurrentTick < midiNote.ticks + midiNote.durationTicks) {
                 ctx.fillStyle = "#ffffffcc";
             }
             ctx.fillRect(
@@ -285,7 +306,7 @@ const MidiPlayer = () => {
         )
 
         // Selection
-        if(!!currentSelection.current && currentSelection.current.x1 && currentSelection.current.y1) {
+        if(!!currentSelection.current) {
             ctx.strokeStyle = "#ffffff88";
             ctx.strokeRect(
                 currentSelection.current.x0,
@@ -304,17 +325,11 @@ const MidiPlayer = () => {
     const handleMouseMove = (event: any) => {
         if(!editMode) { return }
         if(
-            (
-                currentSelection.current?.x1 && (
-                    currentSelection.current.x1 > currentSelection.current.x0 + 2 ||
-                    currentSelection.current.x1 < currentSelection.current.x0 - 2
-                )
-            ) ||
-            (
-                currentSelection.current?.y1 && (
-                    currentSelection.current.y1 > currentSelection.current.y0 + 2 ||
-                    currentSelection.current.y1 < currentSelection.current.y0 - 2
-                )
+            currentSelection.current && (
+                currentSelection.current.x1 > currentSelection.current.x0 + 2 ||
+                currentSelection.current.x1 < currentSelection.current.x0 - 2 ||
+                currentSelection.current.y1 > currentSelection.current.y0 + 2 ||
+                currentSelection.current.y1 < currentSelection.current.y0 - 2
             )
         ) {
             setAimedMidiNote(undefined)     
@@ -340,12 +355,19 @@ const MidiPlayer = () => {
         currentSelection.current = {
             x0: event.clientX - rect.left,
             y0: event.clientY - rect.top,
+            x1: event.clientX - rect.left,
+            y1: event.clientY - rect.top,
         }
     }
 
     const onCanvasClick = () => {
         if(!aimedMidiNote) { return }
-        addNoteAtTick(aimedMidiNote.ticks, aimedMidiNote.midi, {remove_if_exist: true})
+        if(selectedNotes.current.length > 0) {
+            selectedNotes.current = []
+        }
+        else {
+            addNoteAtTick(aimedMidiNote.ticks, aimedMidiNote.midi, {remove_if_exist: true})    
+        }
     }
 
     const handleMoveOver = (event: any) => {

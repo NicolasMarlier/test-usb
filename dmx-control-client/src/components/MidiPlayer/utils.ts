@@ -40,3 +40,39 @@ export const pixelsOffsetToMidiKey = (y: number, height: number, midiKeys: MidiK
     ]
 )
 
+
+
+export const doSegmentsIntersect:
+    (segmentA: [number, number], segmentB: [number, number]) => boolean
+    = (segmentA, segmentB) => {
+    if(segmentB.toSorted()[0] < segmentA.toSorted()[0]) {
+        return doSegmentsIntersect(segmentB, segmentA)
+    }
+    return segmentA.toSorted()[0] < segmentB.toSorted()[1] && segmentA.toSorted()[1] > segmentB.toSorted()[0]
+}
+
+interface Rectangle {
+    x0: number
+    y0: number
+    x1: number
+    y1: number
+}
+
+export const midiNoteToRectangle = (midiNote: MidiNote, height: number, midiKeys: MidiKey[], ticksScroll: number) => ({
+    x0: ticksOffsetToPixels(midiNote.ticks, ticksScroll),
+    y0: midiKeyToPixelsOffset(midiNote.midi, height, midiKeys),
+    x1: ticksOffsetToPixels(midiNote.ticks + midiNote.durationTicks, ticksScroll),
+    y1: midiKeyToPixelsOffset(midiNote.midi, height, midiKeys) + midiKeyToPixelsHeight(height),
+})
+
+export const doRectanglesInteresect = (rectangleA: Rectangle, rectangleB: Rectangle) => (
+    doSegmentsIntersect([rectangleA.x0, rectangleA.x1], [rectangleB.x0, rectangleB.x1]) &&
+    doSegmentsIntersect([rectangleA.y0, rectangleA.y1], [rectangleB.y0, rectangleB.y1])
+)
+
+export const isMidiNoteInRectangle = (selection: Rectangle, midiNote: MidiNote, height: number, midiKeys: MidiKey[], ticksScroll: number) => (
+    doRectanglesInteresect(selection, midiNoteToRectangle(midiNote, height, midiKeys, ticksScroll))
+)
+export const computedSelectedNotes = (selection: Rectangle, midiNotes: MidiNote[], height: number, midiKeys: MidiKey[], ticksScroll: number) => (
+    midiNotes.filter(midiNote => isMidiNoteInRectangle(selection, midiNote, height, midiKeys, ticksScroll))
+)

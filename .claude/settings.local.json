@@ -1,7 +1,10 @@
 {
   "permissions": {
     "allow": [
-      "Bash(npx tsc *)"
+      "Bash(npx tsc *)",
+      "Bash(python3 -c \"import json,sys; d=json.load\\(sys.stdin\\); print\\(json.dumps\\({k: d.get\\(k\\) for k in ['scripts','devDependencies','dependencies']}, indent=2\\)\\)\")",
+      "Bash(npm install *)",
+      "Bash(npm test *)"
     ]
   }
 }

@@ -45,9 +45,10 @@
 [X] Ability to link an playback
 [ ] Ability to unlink a playback
 [X] Playing playback should be linked to midi
-[ ] Ability to move the current tick
 [X] Ability to hover a midi slot
-[ ] Ability to select multiple midi slot
+[X] Ability to select multiple midi slot
+[X] Ability to delete multiple midi slot
+[ ] Ability to move the current tick
 [ ] Ability to copy / past midi slots
 [X] Better-looking controls
 [X] Playback wave form should be displayed

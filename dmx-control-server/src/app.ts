@@ -112,9 +112,12 @@ const wsSendToAll = (message: string) => {
 wss.on('connection', (ws: WebSocket) => {
   ws.on('error', console.error);
 
-  ws.on('message', function message(data) {
-    const {dmxHexSignal: dmxHexSignal} = JSON.parse(data.toString())
-    enttec.setDmxHex(dmxHexSignal)
+  ws.on('message', (rawMessage) => {
+    const data = JSON.parse(rawMessage.toString())
+    if(data.channel == 'dmx-midi-control') {
+      const payload = data as DmxMidiControlClientToServerWsPayload
+      DmxLoop.getInstance().dmxMidiHandler.updateCurrentTickManually(payload.data.midiCurrentTick)
+    }
   });
 
   enttec.updateDispatch = () => {

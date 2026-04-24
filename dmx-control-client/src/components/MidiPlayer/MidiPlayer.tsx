@@ -17,7 +17,7 @@ const MidiPlayer = () => {
     const { program, dmxButtons } = useDmxButtonsContext()
     if(!program) return <></>
     
-    const { midiCurrentTick: serverMidiCurrentTick, lastReceivedMidiKey } = useRealTimeContext()
+    const { midiCurrentTick: serverMidiCurrentTick, sendCurrentTickToServer, lastReceivedMidiKey } = useRealTimeContext()
 
     const [dmxMidi, setDmxMidi] = useState<DmxMidi | undefined>(undefined)
 
@@ -44,6 +44,8 @@ const MidiPlayer = () => {
 
     const currentSelection = useRef<{x0: number, y0: number, x1: number, y1: number} | undefined>(undefined)
     const selectedNotes = useRef<MidiNote[]>([])
+
+    const clipboard = useRef<MidiNote[]>([])
     
     useEffect(() => {
         if(!!lastReceivedMidiKey && isRecording) {
@@ -76,14 +78,36 @@ const MidiPlayer = () => {
         redrawMidiCanvas()
     }, [ticksScroll, audioWaveData])
 
-    const onKeyDown = (e: KeyboardEvent) => {
-        if(e.key == 'Backspace') {
-            if(dmxMidi?.midi_notes && selectedNotes.current.length > 0) {
-                updateProgramDmxMidiAndSync(dmxMidi?.midi_notes.filter(midiNote => (
-                    !selectedNotes.current.find(n => n.midi == midiNote.midi && n.ticks == midiNote.ticks)
-                )))
-            }
+    const deleteSelectedMidiNotes = () => {
+        if(dmxMidi?.midi_notes && selectedNotes.current.length > 0) {
+            updateProgramDmxMidiAndSync(dmxMidi?.midi_notes.filter(midiNote => (
+                !selectedNotes.current.find(n => n.midi == midiNote.midi && n.ticks == midiNote.ticks)
+            )))
         }
+    }
+
+    const copySelectedMidiNotes = () => {
+        if(selectedNotes.current.length == 0) return
+        clipboard.current = selectedNotes.current
+    }
+
+    const pasteSelectedMidiNotes = () => {
+        if(clipboard.current.length == 0) return
+        if(!dmxMidi?.midi_notes) return
+        const initialTick = clipboard.current.reduce((min, {ticks}) => Math.min(ticks, min), clipboard.current[0].ticks)
+        const newMidiNotes = clipboard.current.map(n => ({
+            ticks: n.ticks + midiCurrentTick - initialTick,
+            midi: n.midi,
+            durationTicks: n.durationTicks
+        }))
+
+        updateProgramDmxMidiAndSync([...dmxMidi.midi_notes, ...newMidiNotes])
+    }
+
+    const onKeyDown = (e: KeyboardEvent) => {
+        if(e.key == 'Backspace') deleteSelectedMidiNotes()
+        else if(e.key == 'c' && e.metaKey) copySelectedMidiNotes()
+        else if(e.key == 'v' && e.metaKey) pasteSelectedMidiNotes()
     }
 
     useEffect(() => {
@@ -369,7 +393,11 @@ const MidiPlayer = () => {
         const rect = canvasRef.current.getBoundingClientRect();
         
         // When in first fifth, setCurrentTick
-        if(event.clientY - rect.top >= 0 && event.clientY - rect.top < rect.height / 5) {
+        if(event.clientY - rect.top >= 0 && event.clientY - rect.top < rect.height / 5 && (
+            currentSelection.current &&
+            Math.abs(currentSelection.current.x1 - currentSelection.current.x0) <= 2 &&
+            Math.abs(currentSelection.current.y1 - currentSelection.current.y0) <= 2
+        )) {
             setMidiCurrentTick(
                 pixelsOffsetToTicks(event.clientX - rect.left, ticksScroll, {magnet: true, magnetMode: 'line'})
             )
@@ -459,14 +487,16 @@ const MidiPlayer = () => {
         let bpm = program.bpm
         if(editMode && isPlaying && !!bpm) {
             const audioInterval = setInterval(() => {
-                setMidiCurrentTick(Math.round(audio.current.currentTime * bpm / 60 * PPQ))
+                sendCurrentTickToServer(Math.round(audio.current.currentTime * bpm / 60 * PPQ))
+                //setMidiCurrentTick(Math.round(audio.current.currentTime * bpm / 60 * PPQ))
             }, 30)
             return () => clearInterval(audioInterval)
         }
     }, [editMode, program, isPlaying])
     useEffect(() => {
-        if(!editMode) setMidiCurrentTick(serverMidiCurrentTick)
-    }, [editMode, serverMidiCurrentTick])
+        if(!editMode || isPlaying) setMidiCurrentTick(serverMidiCurrentTick)
+    }, [editMode, serverMidiCurrentTick, dmxButtons, dmxMidi?.midi_notes])
+
 
 
     
@@ -482,6 +512,14 @@ const MidiPlayer = () => {
         container.addEventListener('wheel', handleWheel, { passive: false })
         return () => container.removeEventListener('wheel', handleWheel)
     }, [editMode])
+
+    const onStopButton = () => {
+        audio.current.pause()
+        audio.current.currentTime = 0
+        sendCurrentTickToServer(0)
+        setMidiCurrentTick(0)
+        setTicksScroll(midiCurrentTick - BEATS_OFFSET * PPQ)
+    }
 
     return (<>
 
@@ -531,7 +569,7 @@ const MidiPlayer = () => {
                     </SmallButton>
                     <SmallButton
                         value={false}
-                        onClick={() => {audio.current.pause(); audio.current.currentTime = 0}}
+                        onClick={onStopButton}
                         disabled={!editMode}>
                         <StopIcon/>
                     </SmallButton>

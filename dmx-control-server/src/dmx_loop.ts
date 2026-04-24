@@ -35,7 +35,6 @@ export class DmxLoop extends EventEmitter {
         this.current_program_id = current_program_id
         this.dmxMidiHandler = new DmxMidiHandler({
             onMidiKey: (midiKey) => {
-                console.log("YO", midiKey)
                 this.triggerDmxButtonsByMidiKey(midiKey, {mock_midi_signal: true}) 
             }
                 

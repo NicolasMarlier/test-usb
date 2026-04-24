@@ -44,16 +44,19 @@ export class DmxMidiHandler {
 
   receiveClock = () => {
       if(!this.isPlaying) { return false }
-    
-      this.currentTick = this.nextTick()
-      this.emitCurrentNotes()
+      this.updateCurrentTickManually(this.nextTick())
+  }
+
+  updateCurrentTickManually = (newCurrentTick: number) => {
+    this.emitNotes(this.currentTick, newCurrentTick)
+    this.currentTick = newCurrentTick
   }
 
   nextTick = () => this.currentTick + PPQ / CLOCK_PPQM
 
-  emitCurrentNotes = () => {
+  emitNotes = (fromTick: number, toTick: number) => {
       this.midiNotes
-          .filter((midiNote) => midiNote.ticks >= this.currentTick && midiNote.ticks < this.nextTick())
+          .filter((midiNote) => midiNote.ticks >= fromTick && midiNote.ticks < toTick)
           .forEach((midiNote) => this.onMidiKey(midiNote.midi))
   }
 }

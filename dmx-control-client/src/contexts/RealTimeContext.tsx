@@ -9,6 +9,8 @@ interface RealTimeContextType {
     lastReceivedMidiKey: ReceivedMidiKey | undefined
     setLastReceivedMidiKey: (received_midi_key: ReceivedMidiKey | undefined) => void
 
+    sendCurrentTickToServer: (tick: number) => void
+
     dmxHexSignal: DmxHexSignal,
     enttecOpenUSBState: USBDeviceState
 }
@@ -40,7 +42,7 @@ export const RealTimeContextProvider = ({ children }: {children: React.ReactNode
     const [dmxHexSignal, setDmxHexSignal] = useState("" as DmxHexSignal);
     
 
-    const { lastMessage, readyState } = useWebSocket(WS_URL, {
+    const { lastMessage, readyState, sendMessage } = useWebSocket(WS_URL, {
           shouldReconnect: () => true,
           queryParams: { },
           share: true,
@@ -91,6 +93,13 @@ export const RealTimeContextProvider = ({ children }: {children: React.ReactNode
         }
       }
     }, [lastMessage, programs])
+
+    const sendCurrentTickToServer = (midiCurrentTick: number) => sendMessage(JSON.stringify({
+        channel: 'dmx-midi-control',
+        data: {
+          midiCurrentTick
+        }
+    } as DmxMidiControlClientToServerWsPayload))
     
 
     return (
@@ -100,6 +109,8 @@ export const RealTimeContextProvider = ({ children }: {children: React.ReactNode
             
             midiCurrentTick,
             setMidiCurrentTick,
+
+            sendCurrentTickToServer,
 
             dmxHexSignal,
 

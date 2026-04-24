@@ -31,6 +31,8 @@
 [X] Remove program midi filename
 [X] Move signal to midiKey
 [ ] Clean up
+[ ] Refacto MidiReader
+[ ] Better interface
 [X] Move pod logic to channels
 
 - M5 Fixes
@@ -49,7 +51,7 @@
 [X] Ability to select multiple midi slot
 [X] Ability to delete multiple midi slot
 [X] Ability to move the current tick
-[ ] Ability to copy / past midi slots
+[X] Ability to copy / past midi slots
 [X] Better-looking controls
 [X] Playback wave form should be displayed
 [X] Navigating with arrow should navigate

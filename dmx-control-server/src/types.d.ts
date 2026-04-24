@@ -16,3 +16,10 @@ const message = jsonMessage.data as WSMidiNoteOnMessage
 type WSMidiNoteOnMessage = {
     midi: MidiKey
 }
+
+type DmxMidiControlClientToServerWsPayload = {
+    channel: 'dmx-midi-control',
+    data: {
+        midiCurrentTick: number
+    }
+}

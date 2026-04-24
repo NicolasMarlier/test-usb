@@ -68,3 +68,10 @@ type ReceivedMidiKey = {
 type WSMidiNoteOnMessage = {
     midi: MidiKey
 }
+
+type DmxMidiControlClientToServerWsPayload = {
+    channel: 'dmx-midi-control',
+    data: {
+        midiCurrentTick: number
+    }
+}

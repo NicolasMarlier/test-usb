@@ -9,10 +9,14 @@ interface RealTimeContextType {
     lastReceivedMidiKey: ReceivedMidiKey | undefined
     setLastReceivedMidiKey: (received_midi_key: ReceivedMidiKey | undefined) => void
 
-    sendCurrentTickToServer: (tick: number) => void
+    sendCurrentTickToServer: (tick: number) => void  
 
-    dmxHexSignal: DmxHexSignal,
+    dmxHexSignal: DmxHexSignal
     enttecOpenUSBState: USBDeviceState
+
+    debug: boolean
+    debugIncomingWsPayloads: IncomingWsPayload[]
+    debugOutgoingWsPayloads: OutgoingWsPayload[]
 }
 
 const WS_URL = `ws://127.0.0.1:8080`
@@ -30,6 +34,8 @@ export const useRealTimeContext = () => {
   return realTimeContext
 }
 
+
+
 export const RealTimeContextProvider = ({ children }: {children: React.ReactNode}) => {
     const { setCurrentProgramId, syncPrograms, programs } = useDmxButtonsContext()
 
@@ -40,8 +46,13 @@ export const RealTimeContextProvider = ({ children }: {children: React.ReactNode
 
     const [enttecOpenUSBState, setEnttecOpenUSBState] = useState('Not connected' as USBDeviceState)
     const [dmxHexSignal, setDmxHexSignal] = useState("" as DmxHexSignal);
+
+    const [debugIncomingWsPayloads, setDebugIncomingWsPayloads] = useState<IncomingWsPayload[]>([])
+    const [debugOutgoingWsPayloads, setDebugOutgoingWsPayloads] = useState<OutgoingWsPayload[]>([])
     
 
+    const debug = false
+    
     const { lastMessage, readyState, sendMessage } = useWebSocket(WS_URL, {
           shouldReconnect: () => true,
           queryParams: { },
@@ -61,6 +72,9 @@ export const RealTimeContextProvider = ({ children }: {children: React.ReactNode
     useEffect(() => {
       if(lastMessage !== null) {
         const jsonMessage = JSON.parse(lastMessage.data)
+        if(debug) {
+          setDebugIncomingWsPayloads(p => [...[jsonMessage], ...p])
+        }
         if(jsonMessage.channel === 'dmx') {
           const {
             enttecOpenDMXUSB: {
@@ -94,12 +108,22 @@ export const RealTimeContextProvider = ({ children }: {children: React.ReactNode
       }
     }, [lastMessage, programs])
 
-    const sendCurrentTickToServer = (midiCurrentTick: number) => sendMessage(JSON.stringify({
+    const sendOutgoingMessage = (payload: OutgoingWsPayload) => {
+      if(debug) {
+        setDebugOutgoingWsPayloads(p => [...[payload], ...p])
+      }
+      sendMessage(JSON.stringify(payload))
+    }
+
+    const sendCurrentTickToServer = (midiCurrentTick: number) => {
+      const payload = {
         channel: 'dmx-midi-control',
         data: {
           midiCurrentTick
         }
-    } as DmxMidiControlClientToServerWsPayload))
+      } as DmxMidiControlClientToServerWsPayload
+      sendOutgoingMessage(payload)
+    }
     
 
     return (
@@ -115,7 +139,11 @@ export const RealTimeContextProvider = ({ children }: {children: React.ReactNode
             dmxHexSignal,
 
             webSocketReadyState: readyState,
-            enttecOpenUSBState
+            enttecOpenUSBState,
+            
+            debug,
+            debugIncomingWsPayloads,
+            debugOutgoingWsPayloads,
             } }>
             {children}
         </RealTimeContext.Provider>

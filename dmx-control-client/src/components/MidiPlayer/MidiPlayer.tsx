@@ -1,32 +1,41 @@
 import './MidiPlayer.scss'
 
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { updateProgramDmxMidi, getProgramDmxMidi, uploadProgramAudio, getProgramAudio } from '../../ApiClient';
 import { useRealTimeContext } from '../../contexts/RealTimeContext';
 import { useDmxButtonsContext } from '../../contexts/DmxButtonsContext';
 import Toggle from '../DesignSystem/Toggle/Toggle';
 import SmallButton from '../DesignSystem/SmallButton/SmallButton';
-import { PlayIcon, TrashIcon, RecordIcon, StopIcon, PauseIcon } from './Icons.js'
-import { computedSelectedNotes, midiKeyToPixelsHeight, midiKeyToPixelsOffset, pixelsOffsetToMidiKey, pixelsOffsetToTicks, ticksDurationToPixels, ticksOffsetToPixels } from './utils.js';
+import { RecordIcon, TrashIcon } from './Icons.js'
+import { computedSelectedNotes } from './utils.js';
+import { computeWave } from './utils_audio.js';
+import AudioPlayer from './AudioPlayer.js';
+import { redrawFullCanvas } from './CanvasDrawer.js';
+import Draggable from '../DesignSystem/Draggable/Draggable.js';
+import { addNoteAtTick, insertNotesAtTick, midiNoteEqual } from './utils_midi_notes.js';
+import CanvasMouseHandler from './CanvasMouseHandler.js';
 
 const BEATS_OFFSET = 0.1
 
 const PPQ = 480
 
-const MidiPlayer = () => {
-    const { program, dmxButtons } = useDmxButtonsContext()
-    if(!program) return <></>
+interface Props {
+    program: Program
+}
+
+const MidiPlayer = (props: Props) => {
+    const { program } = props
+    const { dmxButtons } = useDmxButtonsContext()
     
     const { midiCurrentTick: serverMidiCurrentTick, sendCurrentTickToServer, lastReceivedMidiKey } = useRealTimeContext()
 
     const [dmxMidi, setDmxMidi] = useState<DmxMidi | undefined>(undefined)
 
     const [isRecording, setIsRecording] = useState(false)
-    const [isDraggingAudio, setIsDraggingAudio] = useState(false)
     const [audioUrl, setAudioUrl] = useState<string | undefined>(undefined)
 
-    const canvasRef = useRef<HTMLCanvasElement>(null);
-    const canvasContainerRef = useRef<HTMLDivElement>(null);
+    const canvasRef = useRef<HTMLCanvasElement>(null)
+    const mouseSelection = useRef<Rectangle>(null)
 
     const [midiCurrentTick, setMidiCurrentTick] = useState(serverMidiCurrentTick)
 
@@ -36,21 +45,153 @@ const MidiPlayer = () => {
 
     const [editMode, setEditMode] = useState(false)
 
-    const [aimedMidiNote, setAimedMidiNote] = useState<MidiNote | undefined>(undefined)
-
-    const audio = useRef(new Audio())
+    const aimedMidiNote = useRef<MidiNote>(null)
 
     const allMidiKeys = (dmxButtons.flatMap(({triggering_midi_key}) => triggering_midi_key) || []).toSorted() as MidiKey[]
 
-    const currentSelection = useRef<{x0: number, y0: number, x1: number, y1: number} | undefined>(undefined)
+    const [canvasRedrawTrigger, setCanvasRedrawTrigger] = useState(0)
+
+
+    const onMouseSelect = (selection: Rectangle) => {
+        if(!canvasRef.current) return
+
+        mouseSelection.current = selection
+        selectedNotes.current = computedSelectedNotes(
+            selection,
+            dmxMidi?.midi_notes || [],
+            canvasRef.current.clientHeight,
+            allMidiKeys,
+            ticksScroll
+        )
+        redrawMidiCanvas()
+    }
+
+    const onMouseSelectEnd = () => {
+        if(!canvasRef.current) return
+        
+        mouseSelection.current = null
+        redrawMidiCanvas()
+    }
+
+    
+    const onMouseOver = (args: {tick: number, midiKeyIndex: number}) => {
+        const {tick, midiKeyIndex} = args
+        if(tick && midiKeyIndex && midiKeyIndex >= 0 && midiKeyIndex < allMidiKeys.length) {
+            const newAimedMidiNote = {
+                ticks: tick,
+                midi: allMidiKeys[midiKeyIndex],
+                durationTicks: PPQ / 4
+            }
+            if(!aimedMidiNote.current || !midiNoteEqual(newAimedMidiNote, aimedMidiNote.current)) {
+                aimedMidiNote.current = newAimedMidiNote
+                redrawMidiCanvas()
+            }
+        }
+        else {
+            if(aimedMidiNote.current) {
+                aimedMidiNote.current = null
+                redrawMidiCanvas()
+            }
+        }   
+    }
+
+    const onMouseClick = () => {
+        if(!aimedMidiNote.current) return
+
+        updateProgramDmxMidiAndSync(
+            insertNotesAtTick({
+                tick: aimedMidiNote.current.ticks,
+                midiNotes: dmxMidi?.midi_notes || [],
+                midiNotesToInsert: [aimedMidiNote.current],
+                ppq: PPQ,
+                options: {
+                    remove_if_exist: true
+                }
+            })
+        )
+    }
     const selectedNotes = useRef<MidiNote[]>([])
 
     const clipboard = useRef<MidiNote[]>([])
+    const [isPlaying, setIsPlaying] = useState(false)
+
+
+    const deleteSelectedMidiNotes = () => {
+        updateProgramDmxMidiAndSync((dmxMidi?.midi_notes || []).filter(midiNote => (
+            !selectedNotes.current.find(n => n.midi == midiNote.midi && n.ticks == midiNote.ticks)
+        )))
+    }
+
+    const copySelectedMidiNotes = () => {
+        clipboard.current = selectedNotes.current
+    }
+
+    const pasteSelectedMidiNotes = () => {
+        updateProgramDmxMidiAndSync(
+            insertNotesAtTick({
+                midiNotes: dmxMidi?.midi_notes || [],
+                midiNotesToInsert: clipboard.current,
+                tick: midiCurrentTick,
+                ppq: PPQ
+            })
+        )
+    }
+
+    const onKeyDown = (e: KeyboardEvent) => {
+        if(e.key == 'Backspace') deleteSelectedMidiNotes()
+        else if(e.key == 'c' && e.metaKey) copySelectedMidiNotes()
+        else if(e.key == 'v' && e.metaKey) pasteSelectedMidiNotes()
+    }
+
+    const fetchDmxMidi = () => getProgramDmxMidi(program.id).then(setDmxMidi)
+
+    const fetchAudio = () => getProgramAudio(program.id).then((audioUrl) => setAudioUrl(audioUrl || undefined))
+
+    const updateProgramDmxMidiAndSync = (midiNotes: MidiNote[]) => updateProgramDmxMidi(program.id, {midi_notes: midiNotes}).then(fetchDmxMidi)
+
+    const redrawMidiCanvas = () => {
+        if(!canvasRef.current) return
+
+        redrawFullCanvas({
+            canvas: canvasRef.current,
+            midiNotes: dmxMidi?.midi_notes || [],
+            selectedMidiNotes: selectedNotes.current || [],
+            ppq: PPQ,
+            currentMidiTick: midiCurrentTick,
+            ticksScroll,
+            audioWaveData,
+            allMidiKeys,
+            mouseSelection: mouseSelection.current,
+            aimedMidiNote: aimedMidiNote.current,
+        })
+    }
+
+    const triggerCanvasRedraw = () => setCanvasRedrawTrigger(p => p+1)
+
+    useEffect(redrawMidiCanvas, [canvasRedrawTrigger])
     
+
+    const handleWheel = (e: WheelEvent) => {
+        if (!editMode) return
+        
+        setTicksScroll(prev => Math.max(-BEATS_OFFSET * PPQ, prev + (e.deltaX) * 10))
+    }
+
+    const onDropAudioFile = (file: File) => {
+        uploadProgramAudio(program.id, file).then(fetchAudio)
+    }
+
+
     useEffect(() => {
         if(!!lastReceivedMidiKey && isRecording) {
-            const midiKey = lastReceivedMidiKey.midi
-            addNoteAtTick(midiCurrentTick, midiKey)
+            updateProgramDmxMidiAndSync(
+                addNoteAtTick({
+                    tick: midiCurrentTick,
+                    midiNoteMidi: lastReceivedMidiKey.midi,
+                    midiNotes: dmxMidi?.midi_notes || [],
+                    ppq: PPQ
+                })
+            )
         }
     }, [lastReceivedMidiKey, isRecording])
 
@@ -65,415 +206,36 @@ const MidiPlayer = () => {
     }, [program])
 
     useEffect(() => {
-        redrawMidiCanvas()
-    }, [dmxMidi, isRecording])
-
-    useEffect(() => {
         if(!editMode || isPlaying) {
             setTicksScroll(midiCurrentTick - BEATS_OFFSET * PPQ)
         }
     }, [midiCurrentTick, editMode])
 
     useEffect(() => {
-        redrawMidiCanvas()
-    }, [ticksScroll, audioWaveData])
+        triggerCanvasRedraw()
+    }, [midiCurrentTick, ticksScroll, audioWaveData, dmxMidi, isRecording])
 
-    const deleteSelectedMidiNotes = () => {
-        if(dmxMidi?.midi_notes && selectedNotes.current.length > 0) {
-            updateProgramDmxMidiAndSync(dmxMidi?.midi_notes.filter(midiNote => (
-                !selectedNotes.current.find(n => n.midi == midiNote.midi && n.ticks == midiNote.ticks)
-            )))
-        }
-    }
-
-    const copySelectedMidiNotes = () => {
-        if(selectedNotes.current.length == 0) return
-        clipboard.current = selectedNotes.current
-    }
-
-    const pasteSelectedMidiNotes = () => {
-        if(clipboard.current.length == 0) return
-        if(!dmxMidi?.midi_notes) return
-        const initialTick = clipboard.current.reduce((min, {ticks}) => Math.min(ticks, min), clipboard.current[0].ticks)
-        const newMidiNotes = clipboard.current.map(n => ({
-            ticks: n.ticks + midiCurrentTick - initialTick,
-            midi: n.midi,
-            durationTicks: n.durationTicks
-        }))
-
-        updateProgramDmxMidiAndSync([...dmxMidi.midi_notes, ...newMidiNotes])
-    }
-
-    const onKeyDown = (e: KeyboardEvent) => {
-        if(e.key == 'Backspace') deleteSelectedMidiNotes()
-        else if(e.key == 'c' && e.metaKey) copySelectedMidiNotes()
-        else if(e.key == 'v' && e.metaKey) pasteSelectedMidiNotes()
-    }
+    
 
     useEffect(() => {
-        document.addEventListener('mouseup', handleMouseUp)
-        document.addEventListener('mousemove', handleMouseMove)
         document.addEventListener("keydown", onKeyDown)
         return () => {
-            document.removeEventListener("mouseup", handleMouseUp);
-            document.removeEventListener("mousemove", handleMouseMove);
             document.removeEventListener("keydown", onKeyDown)
         };
-    }, [dmxMidi, ticksScroll, editMode, aimedMidiNote])
+    }, [])//[dmxMidi, ticksScroll, editMode, aimedMidiNote])
 
     useEffect(() => {
-        audio.current = new Audio(audioUrl)
-        computeWave().then(setAudioWaveData)
+        if(!audioUrl || !program.bpm) {
+            setAudioWaveData(new Uint8Array())
+        }
+        else {
+            computeWave(audioUrl, program.bpm, PPQ).then(setAudioWaveData)
+        }
+        
     }, [audioUrl])
 
     useEffect(() => {
-        redrawMidiCanvas()
-    }, [aimedMidiNote?.ticks, aimedMidiNote?.midi])
-
-    useEffect(() => {
-        redrawMidiCanvas()
-    }, [currentSelection.current?.x1, currentSelection.current?.y1])
-
-    
-    const fetchDmxMidi = () => getProgramDmxMidi(program.id).then(setDmxMidi)
-
-    const fetchAudio = () => getProgramAudio(program.id).then((audioUrl) => setAudioUrl(audioUrl || undefined))
-
-    const updateProgramDmxMidiAndSync = (midiNotes: MidiNote[]) => updateProgramDmxMidi(program.id, {midi_notes: midiNotes}).then(fetchDmxMidi)
-
-    const sampleSignal = (signal: Float32Array, blockSize=10) => {
-        const samples = Math.ceil(signal.length / blockSize)
-        const dataArray = new Uint8Array(samples)
-
-        signal.forEach((dataPoint, i) => {
-            dataArray[Math.round(i/blockSize)] = Math.max(
-                dataArray[Math.round(i/blockSize)],
-                Math.round(Math.abs(dataPoint) * 255)
-            )
-        })
-        return dataArray
-    }
-
-    const computeWave = async() => {
-        if(!audioUrl) { return new Uint8Array() }
-        if(!program.bpm) { return new Uint8Array() }
-        const audioCtx = new window.AudioContext()
-        const response = await fetch(audioUrl)
-        const arrayBuffer = await response.arrayBuffer()                                                                                                                                                       
-        const audioBuffer = await audioCtx.decodeAudioData(arrayBuffer)                                                                                                                                        
-        // audioBuffer.sampleRate is 44_100 or 48_000 (Hz), ie signal per second
-
-        // 1 second = SAMPLE_RATE datapoints
-        // BPM beats = 60 seconds
-        // 1 beat = PPQ ticks
-        // 1 tick = 60  * SAMPLE_RATE / (PPQ * BPM) datapoints
-
-        const dataPointsPerTick = 60 * audioBuffer.sampleRate / (PPQ * program.bpm)
-
-        
-        const channelDataLeft = audioBuffer.getChannelData(0)
-        const channelDataRight = audioBuffer.getChannelData(1)
-        const channelData = channelDataLeft.map((e, i) => (e + channelDataRight[i])/2);
-
-        return sampleSignal(channelData, dataPointsPerTick)
-    }
-
-    const redrawMidiCanvas = () => {
-        const canvas = canvasRef.current
-        if(!canvas) return;
-        if(!dmxMidi) return;
-
-        const ctx = canvas.getContext("2d")
-        if(!ctx) return
-
-        const midiNotes = dmxMidi.midi_notes || []
-
-        const width = (canvasContainerRef.current as any).clientWidth;
-        const height = (canvasContainerRef.current as any).clientHeight - 2;
-        
-        // Handle retina screen: canvas might 300px wide, but we'll draw like it's 600px
-        const dpr = window.devicePixelRatio || 1;
-        canvas.width = Math.floor(width * dpr);
-        canvas.height = Math.floor(height * dpr);
-        
-        ctx.scale(dpr, dpr);
-        
-    
-        
-
-        // Background
-        ctx.fillStyle = "#000";
-        ctx.fillRect(
-            0,
-            0,
-            width,
-            height
-        );
-
-
-        // Midi track
-        ctx.fillStyle = "#222222";
-        ctx.fillRect(
-            Math.max(0, ticksOffsetToPixels(0, ticksScroll)),
-            height / 5,
-            width,
-            2 * height / 5
-        );
-
-        // Audio wave
-        ctx.fillStyle = "#ffffff06";
-        audioWaveData.forEach((dataPoint, ticks) => {
-            const dataPointHeight = dataPoint * height * 2 / (255 * 5)
-            ctx.fillRect(
-                ticksOffsetToPixels(ticks, ticksScroll),
-                height * 4 / 5 - dataPointHeight / 2,
-                1,
-                dataPointHeight
-            )
-        })
-
-        // Grid
-        for(let tick=0; tick <= PPQ * 60 * 10; tick+= 1) {
-            if(tick % PPQ == 0) {
-                ctx.fillStyle = "#000000";
-                ctx.fillRect(
-                    ticksOffsetToPixels(tick, ticksScroll),
-                    0,
-                    1,
-                    height
-                )
-            }
-            else if(tick % (PPQ / 4) == 0) {
-                ctx.fillStyle = "#00000044";
-                ctx.fillRect(
-                    ticksOffsetToPixels(tick, ticksScroll),
-                    0,
-                    1,
-                    height
-                )
-            }
-        }
-
-        // Horizontal grid
-        allMidiKeys.forEach(midiKey => {
-            ctx.fillStyle = "#00000022"
-            ctx.fillRect(
-                0,
-                midiKeyToPixelsOffset(midiKey, height, allMidiKeys),
-                width,
-                1
-            )
-            ctx.fillRect(
-                0,
-                midiKeyToPixelsOffset(midiKey, height, allMidiKeys) +
-                midiKeyToPixelsHeight(height),
-                width,
-                1
-            )
-        })
-        
-        
-
-        // Beat numbers
-        ctx.font = "14px Tahoma";
-        ctx.textAlign = "left"
-        ctx.textBaseline = "middle"
-        ctx.fillStyle = "#ffffff66";
-        for(let tick=0; tick <= PPQ * 60 * 10; tick+= 1) {
-            if(tick % PPQ == 0) {
-                ctx.fillText(`${tick / PPQ}`, ticksOffsetToPixels(tick, ticksScroll) + 5, 10);
-            }
-        }
-    
-
-        // Midi notes
-        if(!!currentSelection.current) {
-            selectedNotes.current = computedSelectedNotes(currentSelection.current, midiNotes, height, allMidiKeys, ticksScroll)
-        }
-
-        midiNotes.forEach((midiNote) => {
-            ctx.fillStyle = "#ffffffaa";
-
-            // Fighlight when played
-            if(selectedNotes.current.find((n) => midiNote.midi == n.midi && midiNote.ticks == n.ticks)) {
-                ctx.fillStyle = "#72cb3faa";
-            }
-            else if(midiCurrentTick >= midiNote.ticks && midiCurrentTick < midiNote.ticks + midiNote.durationTicks) {
-                ctx.fillStyle = "#ffffffcc";
-            }
-            ctx.fillRect(
-                ticksOffsetToPixels(midiNote.ticks, ticksScroll) + 1,
-                midiKeyToPixelsOffset(midiNote.midi, height, allMidiKeys),
-                ticksDurationToPixels(midiNote.durationTicks) - 1,
-                midiKeyToPixelsHeight(height)
-            )
-        })
-
-        // Aimed midi note
-        if(aimedMidiNote) {
-            ctx.fillStyle = "#ffffff11";
-                ctx.fillRect(
-                ticksOffsetToPixels(aimedMidiNote.ticks, ticksScroll) + 1,
-                midiKeyToPixelsOffset(aimedMidiNote.midi, height, allMidiKeys),
-                ticksDurationToPixels(aimedMidiNote.durationTicks) - 1,
-                midiKeyToPixelsHeight(height)
-            )
-        }
-
-        // Current tick tracker
-        ctx.fillStyle = "#fff";
-        ctx.fillRect(
-            ticksOffsetToPixels(midiCurrentTick, ticksScroll),
-            0,
-            1,
-            canvas.offsetHeight
-        )
-
-        // Selection
-        if(!!currentSelection.current) {
-            ctx.strokeStyle = "#ffffff88";
-            ctx.strokeRect(
-                currentSelection.current.x0,
-                currentSelection.current.y0,
-                currentSelection.current.x1 - currentSelection.current.x0,
-                currentSelection.current.y1 - currentSelection.current.y0,
-            )
-        }
-    }
-
-    const handleMouseUp = (event: MouseEvent) => {
-        onCanvasClick(event)
-        currentSelection.current = undefined
-    }
-
-    const handleMouseMove = (event: MouseEvent) => {
-        if(!editMode) { return }
-
-        // Is doing a bulk select
-        if(
-            currentSelection.current && (
-                currentSelection.current.x1 > currentSelection.current.x0 + 2 ||
-                currentSelection.current.x1 < currentSelection.current.x0 - 2 ||
-                currentSelection.current.y1 > currentSelection.current.y0 + 2 ||
-                currentSelection.current.y1 < currentSelection.current.y0 - 2
-            )
-        ) {
-            setAimedMidiNote(undefined)     
-        }
-        
-        // Is doing a bulk select
-        if(currentSelection.current && canvasRef.current) {
-            const rect = canvasRef.current.getBoundingClientRect();
-            currentSelection.current = {
-                x0: currentSelection.current.x0,
-                y0: currentSelection.current.y0,
-                x1: event.clientX - rect.left,
-                y1: event.clientY - rect.top,
-            }
-        }
-        else {
-            handleMoveOver(event)
-        }
-    }
-
-    const onCanvasMouseDown = (event: MouseEvent) => {
-        if(!canvasRef.current) return
-        const rect = canvasRef.current.getBoundingClientRect();
-        currentSelection.current = {
-            x0: event.clientX - rect.left,
-            y0: event.clientY - rect.top,
-            x1: event.clientX - rect.left,
-            y1: event.clientY - rect.top,
-        }
-    }
-
-    const onCanvasClick = (event: MouseEvent) => {
-        if(!canvasRef.current) return
-        if(!editMode) return
-        const rect = canvasRef.current.getBoundingClientRect();
-        
-        // When in first fifth, setCurrentTick
-        if(event.clientY - rect.top >= 0 && event.clientY - rect.top < rect.height / 5 && (
-            currentSelection.current &&
-            Math.abs(currentSelection.current.x1 - currentSelection.current.x0) <= 2 &&
-            Math.abs(currentSelection.current.y1 - currentSelection.current.y0) <= 2
-        )) {
-            setMidiCurrentTick(
-                pixelsOffsetToTicks(event.clientX - rect.left, ticksScroll, {magnet: true, magnetMode: 'line'})
-            )
-            return
-        }
-
-        if(!aimedMidiNote) { return }
-        if(selectedNotes.current.length > 0) {
-            selectedNotes.current = []
-        }
-        else {
-            addNoteAtTick(aimedMidiNote.ticks, aimedMidiNote.midi, {remove_if_exist: true})    
-        }
-    }
-
-    const handleMoveOver = (event: any) => {
-        const rect = event.target.getBoundingClientRect();
-        const height = rect.height
-
-        const midiKey = pixelsOffsetToMidiKey(event.clientY - rect.top, height, allMidiKeys)
-        if(!midiKey || !editMode) {
-            setAimedMidiNote(undefined)
-        }
-        else {
-            setAimedMidiNote({
-                ticks: pixelsOffsetToTicks(event.clientX - rect.left, ticksScroll, {magnet: true}),
-                midi: midiKey,
-                durationTicks: PPQ / 4
-            })
-        }
-    }
-
-    const addNoteAtTick = (tick: number, midiNoteMidi: number, options?:{remove_if_exist?: boolean}) => {
-        const beatMagnet = 0.25
-        const midiNotes = dmxMidi?.midi_notes || []
-
-        const magnettedTick = PPQ * Math.floor((tick / PPQ) / beatMagnet) * beatMagnet
-
-        const matchingMidiNote = midiNotes.find((note) => note.midi == midiNoteMidi && note.ticks == magnettedTick)
-        
-        if(matchingMidiNote) {
-            if(options?.remove_if_exist) {
-                updateProgramDmxMidiAndSync(
-                    midiNotes.filter((note) => !(note.midi == midiNoteMidi && note.ticks == magnettedTick))
-                )
-            }
-        }
-        else {
-            updateProgramDmxMidiAndSync([
-                ...midiNotes,
-                ...[{
-                    ticks: magnettedTick,
-                    durationTicks: PPQ * beatMagnet,
-                    midi: midiNoteMidi
-                }]
-            ])
-        }
-    }
-    
-
-    const onDragOver = (event: React.DragEvent) => {
-        event.preventDefault()
-        setIsDraggingAudio(true)
-    }
-
-    const onDragLeave = () => setIsDraggingAudio(false)
-
-    const onDrop = (event: React.DragEvent) => {
-        event.preventDefault()
-        setIsDraggingAudio(false)
-        const file = event.dataTransfer.files[0]
-        if (file) uploadProgramAudio(program.id, file).then(fetchAudio)
-    }
-
-    useEffect(() => {
-        const handleResize = () => redrawMidiCanvas();
+        const handleResize = () => triggerCanvasRedraw();
 
         window.addEventListener('resize', handleResize);
 
@@ -481,63 +243,42 @@ const MidiPlayer = () => {
         return () => window.removeEventListener('resize', handleResize);
     }, []);
 
-    const isPlaying = !audio.current.paused && audio.current.currentTime > 0 && !audio.current.ended
-
-    useEffect(() => {
-        let bpm = program.bpm
-        if(editMode && isPlaying && !!bpm) {
-            const audioInterval = setInterval(() => {
-                sendCurrentTickToServer(Math.round(audio.current.currentTime * bpm / 60 * PPQ))
-                //setMidiCurrentTick(Math.round(audio.current.currentTime * bpm / 60 * PPQ))
-            }, 30)
-            return () => clearInterval(audioInterval)
+    const followAudioCurrentTime = useCallback((currentTime: number) => {
+        if(program.bpm) {
+            sendCurrentTickToServer(Math.round(currentTime * program.bpm / 60 * PPQ))
         }
-    }, [editMode, program, isPlaying])
+    }, [program.bpm])
+
+
     useEffect(() => {
         if(!editMode || isPlaying) setMidiCurrentTick(serverMidiCurrentTick)
-    }, [editMode, serverMidiCurrentTick, dmxButtons, dmxMidi?.midi_notes])
-
-
+    }, [editMode, serverMidiCurrentTick, dmxButtons, dmxMidi?.midi_notes])    
 
     
-
-    useEffect(() => {
-        const container = canvasContainerRef.current
-        if (!container) return
-        if (!editMode) return
-        const handleWheel = (e: WheelEvent) => {
-            e.preventDefault()
-            setTicksScroll(prev => Math.max(-BEATS_OFFSET * PPQ, prev + (e.deltaX) * 10))
-        }
-        container.addEventListener('wheel', handleWheel, { passive: false })
-        return () => container.removeEventListener('wheel', handleWheel)
-    }, [editMode])
-
-    const onStopButton = () => {
-        audio.current.pause()
-        audio.current.currentTime = 0
-        sendCurrentTickToServer(0)
-        setMidiCurrentTick(0)
-        setTicksScroll(midiCurrentTick - BEATS_OFFSET * PPQ)
-    }
-
+    
     return (<>
 
         <div className="midi-container">
-            <div
-                ref={canvasContainerRef}
-                className={`midi-canvas-container ${isDraggingAudio ? 'drag-over' : ''}`}
-                onDragOver={onDragOver}
-                onDragLeave={onDragLeave}
-                onDrop={onDrop}>
-                    <canvas
-                        ref={canvasRef}
-                        id="midi-canvas"
-                        width="300"
-                        height="30"
-                        onMouseDown={onCanvasMouseDown}
-                        />
-            </div>
+            <Draggable
+                onDropFile={onDropAudioFile}
+                className='midi-canvas-container'>
+                <canvas
+                    ref={canvasRef}
+                    id="midi-canvas"
+                    width="300"
+                    height="30"
+                    onWheel={handleWheel}
+                    />
+                { editMode && <CanvasMouseHandler
+                    onClickTimeline={(tick) => setMidiCurrentTick(tick)}
+                    ticksScroll={ticksScroll}
+                    onSelect={onMouseSelect}
+                    onSelectEnd={onMouseSelectEnd}
+                    onOver={onMouseOver}
+                    onClick={onMouseClick}
+                    registerAgain={canvasRedrawTrigger}
+                />}
+            </Draggable>
             
 
             
@@ -556,23 +297,15 @@ const MidiPlayer = () => {
                         <RecordIcon/>
                     </SmallButton>
                     <SmallButton
-                        value={false}
-                        onClick={() => updateProgramDmxMidiAndSync([])}
-                        disabled={(dmxMidi?.midi_notes || []).length == 0}>
+                        onClick={() => updateProgramDmxMidiAndSync([])}>
                         <TrashIcon/>
                     </SmallButton>
-                    <SmallButton
-                        value={isPlaying}
-                        onClick={() => {isPlaying ? audio.current.pause() : audio.current.play() }}
-                            disabled={!editMode}>
-                        { isPlaying ? <PauseIcon/> : <PlayIcon/> }
-                    </SmallButton>
-                    <SmallButton
-                        value={false}
-                        onClick={onStopButton}
-                        disabled={!editMode}>
-                        <StopIcon/>
-                    </SmallButton>
+                    <AudioPlayer
+                        disabled={!editMode}
+                        audioUrl={audioUrl}
+                        isPlaying={isPlaying}
+                        setIsPlaying={setIsPlaying}
+                        onCurrentTimeUpdate={followAudioCurrentTime}/>
                     
                 </div>
             </div>

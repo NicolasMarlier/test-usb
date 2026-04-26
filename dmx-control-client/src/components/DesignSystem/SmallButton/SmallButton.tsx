@@ -2,7 +2,7 @@ import type { ReactNode } from 'react'
 import './SmallButton.scss'
 
 interface Props {
-    value: boolean
+    value?: boolean
     onClick?: () => void
     disabled?: boolean
     children: ReactNode

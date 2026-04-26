@@ -5,11 +5,19 @@ import ProgramSelect from './components/ProgramSelect/ProgramSelect.js';
 import DmxButtonsCollection from './components/DmxButtonsCollection/DmxButtonsCollection.js';
 import MidiPlayer from './components/MidiPlayer/MidiPlayer.js';
 import Statuses from './components/Statuses/Statuses.js';
+import { useDmxButtonsContext } from './contexts/DmxButtonsContext.js';
+import DebugConsole from './components/DebugConsole/DebugConsole.js';
+import { useRealTimeContext } from './contexts/RealTimeContext.js';
+
 
 
 function App() {
+  const { program } = useDmxButtonsContext()
+  const { debug } = useRealTimeContext()
+  
   return (
       <div className="panels">
+        { debug && <DebugConsole/>}
         <div className="central-panel">
           
           
@@ -17,7 +25,7 @@ function App() {
             <ProgramSelect/>
             <Statuses/>
           </div>
-          <MidiPlayer/>
+          { program ? <MidiPlayer program={program}/> : <></>}
 
           <DmxButtonsCollection/>
           

@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(yarn install *)",
+      "Read(//Users/nicolas.marlier/.asdf/shims/**)",
+      "Bash(asdf list *)"
+    ]
+  }
+}

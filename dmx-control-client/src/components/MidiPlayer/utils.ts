@@ -32,16 +32,21 @@ export const midiKeyToPixelsHeight = (height: number) => {
     return height * 2 / (5 * 6)
 }
 
+export const pixelsOffsetToMidiKeyIndex = (y: number, height: number) => (
+    Math.floor(
+        (
+            y
+            - height * 1 / 5
+        ) / midiKeyToPixelsHeight(height)
+    )
+)
+
 export const pixelsOffsetToMidiKey = (y: number, height: number, midiKeys: MidiKey[]) => (
     midiKeys.toSorted()[
-        Math.floor(
-            (
-                y
-                - height * 1 / 5
-            ) / midiKeyToPixelsHeight(height)
-        )
+        pixelsOffsetToMidiKeyIndex(y, height)
     ]
 )
+
 
 
 
@@ -51,7 +56,8 @@ export const doSegmentsIntersect:
     if(segmentB.toSorted()[0] < segmentA.toSorted()[0]) {
         return doSegmentsIntersect(segmentB, segmentA)
     }
-    return segmentA.toSorted()[0] < segmentB.toSorted()[1] && segmentA.toSorted()[1] > segmentB.toSorted()[0]
+    return segmentA.toSorted()[0] < segmentB.toSorted()[1] &&
+        segmentA.toSorted()[1] > segmentB.toSorted()[0]
 }
 
 interface Rectangle {

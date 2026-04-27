@@ -52,6 +52,17 @@ const AudioPlayer = (props: Props) => {
         audioRef.current.currentTime = currentTime
     }, [currentTime])
 
+    const onKeyDown = (e: KeyboardEvent) => {
+        if(e.key == ' ') (isPlaying ? pause : play)()
+    }
+
+    useEffect(() => {
+        document.addEventListener("keydown", onKeyDown)
+        return () => {
+            document.removeEventListener("keydown", onKeyDown)
+        }
+    }, [isPlaying])
+
     return <>
         <audio
             ref={audioRef}

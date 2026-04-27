@@ -12,7 +12,7 @@ import { computeWave } from './utils_audio.js';
 import AudioPlayer from './AudioPlayer.js';
 import { redrawFullCanvas } from './CanvasDrawer.js';
 import Draggable from '../DesignSystem/Draggable/Draggable.js';
-import { addNoteAtTick, insertNotesAtTick, midiNoteEqual } from './utils_midi_notes.js';
+import { addNoteAtTick, insertNotesAtTick, magnettedTick, midiNoteEqual } from './utils_midi_notes.js';
 import CanvasMouseHandler from './CanvasMouseHandler.js';
 
 const BEATS_OFFSET = 0.1
@@ -143,6 +143,20 @@ const MidiPlayer = (props: Props) => {
         if(e.key == 'Backspace') deleteSelectedMidiNotes()
         else if(e.key == 'c' && e.metaKey) copySelectedMidiNotes()
         else if(e.key == 'v' && e.metaKey) pasteSelectedMidiNotes()
+        else if(e.key == 'ArrowLeft') {
+            const targetTick = (magnettedTick(midiCurrentTick, PPQ, 1) - PPQ)
+            console.log(targetTick)
+            setMidiCurrentTick(targetTick)
+            setTicksScroll(targetTick - PPQ)
+            setCurrentAudioTime(targetTick * 60 / (PPQ * program.bpm))
+        }
+        else if(e.key == 'ArrowRight') {
+            const targetTick = (magnettedTick(midiCurrentTick, PPQ, 1) + PPQ)
+            console.log(targetTick)
+            setMidiCurrentTick(targetTick)
+            setTicksScroll(targetTick - PPQ)
+            setCurrentAudioTime(targetTick * 60 / (PPQ * program.bpm))
+        }  
     }
 
     const fetchDmxMidi = () => getProgramDmxMidi(program.id).then(setDmxMidi)
@@ -213,7 +227,7 @@ const MidiPlayer = (props: Props) => {
         return () => {
             document.removeEventListener("keydown", onKeyDown)
         }
-    }, [dmxMidi, ticksScroll, editMode, aimedMidiNote])
+    }, [dmxMidi, ticksScroll, editMode, aimedMidiNote, midiCurrentTick])
 
     useEffect(() => {
         if(!audioUrl) {

@@ -51,6 +51,8 @@ const MidiPlayer = (props: Props) => {
 
     const [canvasRedrawTrigger, setCanvasRedrawTrigger] = useState(0)
 
+    const [currentAudioTime, setCurrentAudioTime] = useState(0)
+
 
     const onMouseSelect = (selection: Rectangle) => {
         if(!canvasRef.current) return
@@ -76,7 +78,7 @@ const MidiPlayer = (props: Props) => {
     
     const onMouseOver = (args: {tick: number, midiKeyIndex: number}) => {
         const {tick, midiKeyIndex} = args
-        if(tick && midiKeyIndex && midiKeyIndex >= 0 && midiKeyIndex < allMidiKeys.length) {
+        if(tick >= 0 && midiKeyIndex >= 0 && midiKeyIndex < allMidiKeys.length) {
             const newAimedMidiNote = {
                 ticks: tick,
                 midi: allMidiKeys[midiKeyIndex],
@@ -171,7 +173,7 @@ const MidiPlayer = (props: Props) => {
     useEffect(redrawMidiCanvas, [canvasRedrawTrigger])
     
 
-    const handleWheel = (e: WheelEvent) => {
+    const handleWheel = (e: React.WheelEvent<HTMLCanvasElement>) => {
         if (!editMode) return
         
         setTicksScroll(prev => Math.max(-BEATS_OFFSET * PPQ, prev + (e.deltaX) * 10))
@@ -187,7 +189,7 @@ const MidiPlayer = (props: Props) => {
             updateProgramDmxMidiAndSync(
                 addNoteAtTick({
                     tick: midiCurrentTick,
-                    midiNoteMidi: lastReceivedMidiKey.midi,
+                    midiKey: lastReceivedMidiKey.midi,
                     midiNotes: dmxMidi?.midi_notes || [],
                     ppq: PPQ
                 })
@@ -221,8 +223,8 @@ const MidiPlayer = (props: Props) => {
         document.addEventListener("keydown", onKeyDown)
         return () => {
             document.removeEventListener("keydown", onKeyDown)
-        };
-    }, [])//[dmxMidi, ticksScroll, editMode, aimedMidiNote])
+        }
+    }, [dmxMidi, ticksScroll, editMode, aimedMidiNote])
 
     useEffect(() => {
         if(!audioUrl || !program.bpm) {
@@ -249,6 +251,13 @@ const MidiPlayer = (props: Props) => {
         }
     }, [program.bpm])
 
+    const onClickTimeline = (tick: number) => {
+        setMidiCurrentTick(tick)
+
+        if(!program?.bpm) return
+        setCurrentAudioTime(tick * 60 / (PPQ * program.bpm))
+    }
+
 
     useEffect(() => {
         if(!editMode || isPlaying) setMidiCurrentTick(serverMidiCurrentTick)
@@ -270,7 +279,7 @@ const MidiPlayer = (props: Props) => {
                     onWheel={handleWheel}
                     />
                 { editMode && <CanvasMouseHandler
-                    onClickTimeline={(tick) => setMidiCurrentTick(tick)}
+                    onClickTimeline={onClickTimeline}
                     ticksScroll={ticksScroll}
                     onSelect={onMouseSelect}
                     onSelectEnd={onMouseSelectEnd}
@@ -304,6 +313,7 @@ const MidiPlayer = (props: Props) => {
                         disabled={!editMode}
                         audioUrl={audioUrl}
                         isPlaying={isPlaying}
+                        currentTime={currentAudioTime}
                         setIsPlaying={setIsPlaying}
                         onCurrentTimeUpdate={followAudioCurrentTime}/>
                     

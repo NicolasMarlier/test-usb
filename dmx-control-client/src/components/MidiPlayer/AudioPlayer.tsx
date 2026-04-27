@@ -8,10 +8,11 @@ interface Props {
     isPlaying: boolean
     onCurrentTimeUpdate: (currentTime: number) => void
     setIsPlaying: (isPlaying: boolean) => void
+    currentTime: number
 }
 
 const AudioPlayer = (props: Props) => {
-    const { disabled, audioUrl, isPlaying, setIsPlaying, onCurrentTimeUpdate } = props
+    const { disabled, audioUrl, isPlaying, setIsPlaying, onCurrentTimeUpdate, currentTime } = props
 
     const audioRef = useRef<HTMLAudioElement>(null)
 
@@ -44,6 +45,12 @@ const AudioPlayer = (props: Props) => {
             return () => clearInterval(audioInterval)
         }
     }, [isPlaying, onCurrentTimeUpdate])
+
+    useEffect(() => {
+        if(!audioRef.current) return
+        if(!currentTime) return
+        audioRef.current.currentTime = currentTime
+    }, [currentTime])
 
     return <>
         <audio

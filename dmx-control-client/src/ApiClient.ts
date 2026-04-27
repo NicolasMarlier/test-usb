@@ -13,6 +13,9 @@ export const createProgram: (dict: {name: string}) => Promise<Program> = ({name}
 export const updateProgram: (id: number, program: ProgramUpdateParams) => Promise<void> = (id, program) => axios
   .put(`${BASE_PATH}/programs/${id}`, program)
 
+export const selectProgram: (id: number) => Promise<void> = (id) => axios
+  .put(`${BASE_PATH}/programs/${id}/select`)
+
 export const deleteProgram: (id: number) => Promise<void> = (id) => axios
   .delete(`${BASE_PATH}/programs/${id}`)
   

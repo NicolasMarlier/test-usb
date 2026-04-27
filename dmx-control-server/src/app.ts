@@ -24,6 +24,7 @@ const HTTP_PORT = 3000
 app.get('/programs', ProgramsController.list)
 app.post('/programs', ProgramsController.create)
 app.put('/programs/:id', ProgramsController.update)
+app.put('/programs/:id/select', ProgramsController.select)
 app.delete('/programs/:id', ProgramsController.destroy)
 
 app.post("/programs/:id/audio", audioUpload.single("file"), ProgramsAudioController.upload)

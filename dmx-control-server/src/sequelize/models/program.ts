@@ -30,7 +30,8 @@ export class Program extends Model<InferAttributes<Program>, InferCreationAttrib
         },
         bpm: {
           type: DataTypes.INTEGER.UNSIGNED,
-          allowNull: true,
+          defaultValue: 85,
+          allowNull: false,
         },
         audio_filename: {
           type: new DataTypes.STRING(256),

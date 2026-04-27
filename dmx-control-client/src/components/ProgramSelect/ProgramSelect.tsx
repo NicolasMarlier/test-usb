@@ -3,12 +3,12 @@ import './ProgramSelect.scss'
 import { useDmxButtonsContext } from '../../contexts/DmxButtonsContext'
 import { useEffect, useRef, useState } from 'react'
 import ProgramSelectOption from './ProgramSelectOption'
-import { createProgram } from '../../ApiClient'
+import { createProgram, selectProgram } from '../../ApiClient'
 
 const KEY_DOWN_ARROW_DOWN = 'ArrowDown'
 const KEY_DOWN_ARROW_UP = 'ArrowUp'
 const ProgramSelect = () => {
-    const { program, programs, syncPrograms, currentProgramId, setCurrentProgramId } = useDmxButtonsContext()
+    const { program, programs, syncPrograms, currentProgramId } = useDmxButtonsContext()
 
     const lastProgramId = useRef(currentProgramId)
     const [showPicker, setShowPicker] = useState(false)
@@ -17,8 +17,8 @@ const ProgramSelect = () => {
 
     const createProgramAndSync = async(name?: string) => {
         const newProgram = await createProgram({name: name || 'Nouveau'})
-        setCurrentProgramId(newProgram.id)
-        syncPrograms()
+        await syncPrograms()
+        selectProgram(newProgram.id)
     }
     const clickBackground = (e: any) => {
         if(e.target == e.currentTarget) {
@@ -41,10 +41,10 @@ const ProgramSelect = () => {
         if(programs.length == 0) { return }
         
         if(e.code === KEY_DOWN_ARROW_DOWN) {
-            setCurrentProgramId(relativeProgramId(1))
+            selectProgram(relativeProgramId(1))
         }
         else if(e.code === KEY_DOWN_ARROW_UP) {
-            setCurrentProgramId(relativeProgramId(-1))
+            selectProgram(relativeProgramId(-1))
         }
     }
 

@@ -2,6 +2,7 @@ import { Request, Response } from "express"
 import { Program } from "../sequelize/models/program";
 import { handleErrors, NotFoundError, validateUrlParam } from "./application.controller";
 import { DmxMidi } from "../sequelize/models/dmx_midi";
+import { DmxLoop } from "../dmx_loop";
 
 
 const getProgram = async(req: Request) => {
@@ -42,6 +43,14 @@ export class ProgramsController {
                 status: 'ok',
                 program: program
             })
+        })
+    }
+
+    static async select(req: Request, res: Response) {
+        handleErrors(req, res, async() => {
+            const program = await getProgram(req)
+            await DmxLoop.getInstance().switchProgram(program.id)
+            res.json({status: 'ok'})
         })
     }
 

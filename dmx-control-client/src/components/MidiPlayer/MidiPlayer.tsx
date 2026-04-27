@@ -153,6 +153,7 @@ const MidiPlayer = (props: Props) => {
 
     const redrawMidiCanvas = () => {
         if(!canvasRef.current) return
+        lastCanvasRedraw.current = Date.now()
 
         redrawFullCanvas({
             canvas: canvasRef.current,
@@ -169,9 +170,6 @@ const MidiPlayer = (props: Props) => {
     }
 
     const triggerCanvasRedraw = () => setCanvasRedrawTrigger(p => p+1)
-
-    useEffect(redrawMidiCanvas, [canvasRedrawTrigger])
-    
 
     const handleWheel = (e: React.WheelEvent<HTMLCanvasElement>) => {
         if (!editMode) return
@@ -202,16 +200,7 @@ const MidiPlayer = (props: Props) => {
         setIsRecording(false)
         fetchDmxMidi()
         fetchAudio()
-        if(!program.bpm && editMode) {
-            setEditMode(false)
-        }
     }, [program])
-
-    useEffect(() => {
-        if(!editMode || isPlaying) {
-            setTicksScroll(midiCurrentTick - BEATS_OFFSET * PPQ)
-        }
-    }, [midiCurrentTick, editMode])
 
     useEffect(() => {
         triggerCanvasRedraw()
@@ -227,7 +216,7 @@ const MidiPlayer = (props: Props) => {
     }, [dmxMidi, ticksScroll, editMode, aimedMidiNote])
 
     useEffect(() => {
-        if(!audioUrl || !program.bpm) {
+        if(!audioUrl) {
             setAudioWaveData(new Uint8Array())
         }
         else {
@@ -246,24 +235,36 @@ const MidiPlayer = (props: Props) => {
     }, []);
 
     const followAudioCurrentTime = useCallback((currentTime: number) => {
-        if(program.bpm) {
-            sendCurrentTickToServer(Math.round(currentTime * program.bpm / 60 * PPQ))
-        }
+        sendCurrentTickToServer(Math.round(currentTime * program.bpm / 60 * PPQ))
     }, [program.bpm])
 
     const onClickTimeline = (tick: number) => {
         setMidiCurrentTick(tick)
-
-        if(!program?.bpm) return
         setCurrentAudioTime(tick * 60 / (PPQ * program.bpm))
     }
-
 
     useEffect(() => {
         if(!editMode || isPlaying) setMidiCurrentTick(serverMidiCurrentTick)
     }, [editMode, serverMidiCurrentTick, dmxButtons, dmxMidi?.midi_notes])    
 
-    
+    useEffect(() => {
+        if(!editMode || isPlaying) setTicksScroll(midiCurrentTick - BEATS_OFFSET * PPQ)
+    }, [midiCurrentTick, editMode])
+
+    const lastCanvasRedraw = useRef<number>(null)
+
+    useEffect(() => {
+        if(lastCanvasRedraw.current && (Date.now() - lastCanvasRedraw.current < 30)) {
+            const interval = setTimeout(() => {
+                redrawMidiCanvas()
+            }, 30 - (Date.now() - lastCanvasRedraw.current))
+            return clearInterval(interval)
+        }
+        else {
+            redrawMidiCanvas()
+        }
+        
+    }, [canvasRedrawTrigger])
     
     return (<>
 
@@ -295,8 +296,7 @@ const MidiPlayer = (props: Props) => {
                 <div className='label'>
                     <Toggle
                         value={editMode}
-                        onChange={setEditMode}
-                        disabled={!program.bpm}/>
+                        onChange={setEditMode}/>
                     EDIT MODE
                 </div>
                 <div className='label'>

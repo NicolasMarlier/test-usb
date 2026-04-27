@@ -47,17 +47,18 @@ export const pixelsOffsetToMidiKey = (y: number, height: number, midiKeys: MidiK
     ]
 )
 
-
-
+const sortSegment: (segment: [number, number]) => [number, number] = ([a, b]) => (
+    a > b ? [b, a] : [a, b]
+)
 
 export const doSegmentsIntersect:
     (segmentA: [number, number], segmentB: [number, number]) => boolean
     = (segmentA, segmentB) => {
-    if(segmentB.toSorted()[0] < segmentA.toSorted()[0]) {
+    if(sortSegment(segmentB)[0] < sortSegment(segmentA)[0]) {
         return doSegmentsIntersect(segmentB, segmentA)
     }
-    return segmentA.toSorted()[0] < segmentB.toSorted()[1] &&
-        segmentA.toSorted()[1] > segmentB.toSorted()[0]
+    return sortSegment(segmentA)[0] < sortSegment(segmentB)[1] &&
+        sortSegment(segmentA)[1] > sortSegment(segmentB)[0]
 }
 
 interface Rectangle {

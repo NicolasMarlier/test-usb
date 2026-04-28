@@ -87,7 +87,6 @@ export class MidiRouter extends EventEmitter {
 
     console.log(`Open Midi port ${port} for device ${name}`)
     input.on("message", (deltaTime: number, message: number[]) => {
-      //console.log(deltaTime, mes)
       const [status, data1, data2] = message;
 
       if(!status) { return }

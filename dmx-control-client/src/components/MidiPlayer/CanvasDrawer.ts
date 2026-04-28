@@ -1,9 +1,10 @@
-import { midiKeyToPixelsHeight, midiKeyToPixelsOffset, midiNoteToRectangle, ticksDurationToPixels, ticksOffsetToPixels } from "./utils";
+import { midiKeyToPixelsHeight, midiKeyToPixelsOffset, ticksDurationToPixels, ticksOffsetToPixels } from "./utils";
 
 interface Props {
     canvas: HTMLCanvasElement
     midiNotes: MidiNote[]
     ticksScroll: number
+    pixelsPerBeat: number
     audioWaveData: Uint8Array
     ppq: number
     allMidiKeys: MidiKey[]
@@ -11,6 +12,7 @@ interface Props {
     currentMidiTick: number
     aimedMidiNote: MidiNote | null
     mouseSelection: Rectangle | null
+    
 }
 
 interface DrawerFunctionProps {
@@ -19,6 +21,7 @@ interface DrawerFunctionProps {
     height: number
     ctx: CanvasRenderingContext2D
     ticksScroll: number
+    pixelsPerBeat: number
     ppq: number
     allMidiKeys: MidiKey[]
 }
@@ -33,12 +36,12 @@ const adjustDevicePixelRatio = (canvas: HTMLCanvasElement, ctx: CanvasRenderingC
 }
 
 const drawAudioWave = (props: DrawerFunctionProps, audioWaveData: Uint8Array) => {
-    const { ctx, ticksScroll, height } = props
+    const { ctx, ticksScroll, pixelsPerBeat, height } = props
     ctx.fillStyle = "#ffffff06";
     audioWaveData.forEach((dataPoint, ticks) => {
         const dataPointHeight = dataPoint * height * 2 / (255 * 5)
         ctx.fillRect(
-            ticksOffsetToPixels(ticks, ticksScroll),
+            ticksOffsetToPixels(ticks, ticksScroll, pixelsPerBeat),
             height * 4 / 5 - dataPointHeight / 2,
             1,
             dataPointHeight
@@ -47,26 +50,27 @@ const drawAudioWave = (props: DrawerFunctionProps, audioWaveData: Uint8Array) =>
 }
 
 const drawBeatsGrid = (props: DrawerFunctionProps) => {
-    const { ctx, ppq, height, ticksScroll } = props
+    const { ctx, ppq, height, ticksScroll, pixelsPerBeat } = props
     for(let tick=0; tick <= ppq * 60 * 10; tick+= 1) {
-        if(tick % ppq == 0) {
+        if(primaryGridRatio(tick, props)) {
             ctx.fillStyle = "#000000";
             ctx.fillRect(
-                ticksOffsetToPixels(tick, ticksScroll),
-                0,
+                ticksOffsetToPixels(tick, ticksScroll, pixelsPerBeat),
+                height / 5,
                 1,
-                height
+                height * 2 / 5
             )
         }
-        else if(tick % (ppq / 4) == 0) {
+        else if(secondaryGridRatio(tick, props)) {
             ctx.fillStyle = "#00000044";
             ctx.fillRect(
-                ticksOffsetToPixels(tick, ticksScroll),
-                0,
+                ticksOffsetToPixels(tick, ticksScroll, pixelsPerBeat),
+                height / 5,
                 1,
-                height
+                height * 2 / 5
             )
         }
+        
     }
 }
 
@@ -90,11 +94,24 @@ const drawMidiKeysGrid = (props: DrawerFunctionProps) => {
     })
 }
 
+const primaryGridRatio = (tick: number, props: DrawerFunctionProps)  => {
+    const { ppq, pixelsPerBeat } = props
+    if(pixelsPerBeat > 20) return tick % ppq == 0
+    else if(pixelsPerBeat > 10) return tick % (ppq * 4) == 0
+    else return tick % (ppq * 16) == 0
+}
+const secondaryGridRatio = (tick: number, props: DrawerFunctionProps)  => {
+    const { ppq, pixelsPerBeat } = props
+    if(pixelsPerBeat > 20) return tick % (ppq / 4) == 0
+    else if(pixelsPerBeat > 10) return tick % ppq == 0
+    else return tick % (ppq * 4) == 0
+}
+
 const drawBeatsNumbers = (props: DrawerFunctionProps) => {
-    const { ctx, ppq, ticksScroll, height, width } = props
+    const { ctx, ppq, ticksScroll, pixelsPerBeat, height, width } = props
     ctx.fillStyle = "#222222";
     ctx.fillRect(
-        Math.max(0, ticksOffsetToPixels(0, ticksScroll)),
+        Math.max(0, ticksOffsetToPixels(0, ticksScroll, pixelsPerBeat)),
         height / 5,
         width,
         2 * height / 5
@@ -105,14 +122,14 @@ const drawBeatsNumbers = (props: DrawerFunctionProps) => {
     ctx.textBaseline = "middle"
     ctx.fillStyle = "#ffffff66";
     for(let tick=0; tick <= ppq * 60 * 10; tick+= 1) {
-        if(tick % ppq == 0) {
-            ctx.fillText(`${tick / ppq}`, ticksOffsetToPixels(tick, ticksScroll) + 5, 10);
+        if(primaryGridRatio(tick, props)) {
+            ctx.fillText(`${tick / ppq + 1}`, ticksOffsetToPixels(tick, ticksScroll, pixelsPerBeat) + 5, 10);
         }
     }
 }
 
 const drawMidiNotes = (props: DrawerFunctionProps, params: {midiNotes: MidiNote[], selectedMidiNotes: MidiNote[], currentMidiTick: number}) => {
-    const { ctx,  height, ticksScroll, allMidiKeys } = props
+    const { ctx,  height, ticksScroll, pixelsPerBeat, allMidiKeys } = props
     const { midiNotes, selectedMidiNotes, currentMidiTick } = params
     midiNotes.forEach((midiNote) => {
             ctx.fillStyle = "#ffffffaa";
@@ -126,30 +143,30 @@ const drawMidiNotes = (props: DrawerFunctionProps, params: {midiNotes: MidiNote[
             }
 
             ctx.fillRect(
-                ticksOffsetToPixels(midiNote.ticks, ticksScroll) + 1,
+                ticksOffsetToPixels(midiNote.ticks, ticksScroll, pixelsPerBeat) + 1,
                 midiKeyToPixelsOffset(midiNote.midi, height, allMidiKeys),
-                ticksDurationToPixels(midiNote.durationTicks) - 1,
+                ticksDurationToPixels(midiNote.durationTicks, pixelsPerBeat) - 1,
                 midiKeyToPixelsHeight(height)
             )
         })
 }
 
 const drawAimedMidiNote = (props: DrawerFunctionProps, aimedMidiNote: MidiNote) => {
-    const { ctx,  height, ticksScroll, allMidiKeys } = props
+    const { ctx,  height, ticksScroll, pixelsPerBeat, allMidiKeys } = props
     ctx.fillStyle = "#ffffff11";
         ctx.fillRect(
-        ticksOffsetToPixels(aimedMidiNote.ticks, ticksScroll) + 1,
+        ticksOffsetToPixels(aimedMidiNote.ticks, ticksScroll, pixelsPerBeat) + 1,
         midiKeyToPixelsOffset(aimedMidiNote.midi, height, allMidiKeys),
-        ticksDurationToPixels(aimedMidiNote.durationTicks) - 1,
+        ticksDurationToPixels(aimedMidiNote.durationTicks, pixelsPerBeat) - 1,
         midiKeyToPixelsHeight(height)
     )
 }
 
 const drawCurrentTick = (props: DrawerFunctionProps, currentMidiTick: number) => {
-    const { ctx, ticksScroll, height } = props
+    const { ctx, ticksScroll, pixelsPerBeat, height } = props
     ctx.fillStyle = "#fff";
     ctx.fillRect(
-        ticksOffsetToPixels(currentMidiTick, ticksScroll),
+        ticksOffsetToPixels(currentMidiTick, ticksScroll, pixelsPerBeat),
         0,
         1,
         height

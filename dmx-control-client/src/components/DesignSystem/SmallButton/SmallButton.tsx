@@ -13,9 +13,7 @@ const SmallButton = (props: Props) => {
     return <div
                 className={`small-button ${value ? 'active' : ''} ${disabled ? 'disabled' : 'enabled'}`}
                 onClick={!disabled && onClick || (() => {})}>
-            <div className='small-button-pin'>
                 { children }
-            </div>
         </div>
 }
 export default SmallButton

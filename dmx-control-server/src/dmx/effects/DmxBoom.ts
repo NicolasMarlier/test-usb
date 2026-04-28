@@ -11,9 +11,9 @@ class DmxBoom extends DmxEffect {
         let newSignal = dmxHexSignal
         
         let colorIntensity = 1;
-        if(completeness > 0.25) {
+        //if(completeness > 0.25) {
             colorIntensity = 1 - completeness
-        }
+        //}
 
         
         const colorArray = colorHexToArray(dmxButton.color)

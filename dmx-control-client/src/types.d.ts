@@ -36,7 +36,7 @@ type DmxEffectNature = 'Boom' | 'Set' | 'Run' | 'Toggle'
 type Program = {
     name: string
     id: number
-    bpm?: number
+    bpm: number
 }
 
 type ProgramUpdateParams = {

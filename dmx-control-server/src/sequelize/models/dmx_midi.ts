@@ -10,7 +10,7 @@ import {
 export class DmxMidi extends Model<InferAttributes<DmxMidi>, InferCreationAttributes<DmxMidi>> {
   declare id: CreationOptional<string>
   declare program_id: number
-  declare midi_notes: MidiNote[]
+  declare midi_patterns: MidiPattern[]
   
   static initModel(sequelize: Sequelize): typeof DmxMidi {
     DmxMidi.init(
@@ -26,7 +26,7 @@ export class DmxMidi extends Model<InferAttributes<DmxMidi>, InferCreationAttrib
           allowNull: false,
         },
 
-        midi_notes: {
+        midi_patterns: {
           type: DataTypes.JSONB,
           allowNull: false,
           defaultValue: [],

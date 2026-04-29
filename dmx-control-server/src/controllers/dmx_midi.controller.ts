@@ -27,10 +27,10 @@ export class DmxMidiController {
         handleErrors(req, res, async() => {
             const dmxMidi = await getDmxMidi(req)
 
-            const midi_notes = req.body.midi_notes
+            const midi_patterns = req.body.midi_patterns
 
             await dmxMidi.update({
-                midi_notes: midi_notes
+                midi_patterns: midi_patterns
             })
 
             DmxLoop.getInstance().reloadMidi()

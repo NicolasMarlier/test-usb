@@ -12,7 +12,7 @@ export class Program extends Model<InferAttributes<Program>, InferCreationAttrib
       where: {program_id: this.id}
     }) || await DmxMidi.create({
       program_id: this.id,
-      midi_notes: []
+      midi_patterns: []
     })
   }
 

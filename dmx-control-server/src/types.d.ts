@@ -11,6 +11,12 @@ type MidiNote = {
     durationTicks: number
 }
 
+type MidiPattern = {
+    ticks: number
+    midi_notes: MidiNote[]
+    durationTicks: number
+}
+
 const message = jsonMessage.data as WSMidiNoteOnMessage
 
 type WSMidiNoteOnMessage = {

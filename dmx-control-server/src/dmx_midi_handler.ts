@@ -30,6 +30,10 @@ export class DmxMidiHandler {
     this.midiNotes = midiNotes
   }
 
+  setMidiPatterns(midiPatterns: MidiPattern[]) {
+    this.midiNotes = midiPatterns.map(p => p.midi_notes).flat()
+  }
+
   play = () => {
     this.currentTick = -PPQ / CLOCK_PPQM
     this.isPlaying = true

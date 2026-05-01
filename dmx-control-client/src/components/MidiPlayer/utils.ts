@@ -73,6 +73,13 @@ export const midiNoteToRectangle = (midiNote: MidiNote, height: number, midiKeys
     y1: midiKeyToPixelsOffset(midiNote.midi, height, midiKeys) + midiKeyToPixelsHeight(height),
 })
 
+export const midiPatternToRectangle = (midiPattern: MidiPattern, height: number, ticksScroll: number, pixelsPerBeat: number) => ({
+    x0: ticksOffsetToPixels(midiPattern.ticks, ticksScroll, pixelsPerBeat),
+    y0: height * 1 / 5,
+    x1: ticksOffsetToPixels(midiPattern.ticks + midiPattern.durationTicks, ticksScroll, pixelsPerBeat),
+    y1: height * 3 / 5
+})
+
 export const doRectanglesInteresect = (rectangleA: Rectangle, rectangleB: Rectangle) => (
     doSegmentsIntersect([rectangleA.x0, rectangleA.x1], [rectangleB.x0, rectangleB.x1]) &&
     doSegmentsIntersect([rectangleA.y0, rectangleA.y1], [rectangleB.y0, rectangleB.y1])

@@ -36,7 +36,7 @@ export class ProgramsController {
             await DmxMidi
                 .create({
                     program_id: program.id,
-                    midi_notes: []
+                    midi_patterns: []
                 })
     
             res.json({

@@ -3,6 +3,8 @@ import { pixelsOffsetToMidiKeyIndex, pixelsOffsetToTicks } from "./utils";
 
 interface Props {
     onClickTimeline: (tick: number) => void
+    onClickMain: (tick: number) => void
+    onClickAudioWave: (tick: number) => void
     onClick: () => void
     ticksScroll: number
     pixelsPerBeat: number
@@ -18,6 +20,8 @@ const CanvasMouseHandler = (props: Props) => {
         ticksScroll,
         pixelsPerBeat,
         onClickTimeline,
+        onClickMain,
+        onClickAudioWave,
         onClick,
         onSelect,
         onSelectEnd,
@@ -65,7 +69,17 @@ const CanvasMouseHandler = (props: Props) => {
             
             return
         }
+        else if(event.clientY - canvasTop() > canvasHeight() / 5 &&
+            event.clientY - canvasTop() < 3 * canvasHeight() / 5) {
+            currentSelection.current = undefined
+            onClickMain(
+                pixelsOffsetToTicks(event.clientX - canvasLeft(), ticksScroll, pixelsPerBeat, {magnet: true, magnetMode: 'line'})
+            )
+        } 
         else {
+            onClickAudioWave(
+                pixelsOffsetToTicks(event.clientX - canvasLeft(), ticksScroll, pixelsPerBeat, {magnet: true, magnetMode: 'line'})
+            )
             currentSelection.current = {
                 x0: event.clientX - canvasLeft(),
                 y0: event.clientY - canvasTop(),
@@ -131,7 +145,7 @@ const CanvasMouseHandler = (props: Props) => {
         return () => {
             document.removeEventListener("mouseup", onMouseUp);
             document.removeEventListener("mousemove", onMouseMove);
-            canvas().removeEventListener('mousemove', onMouseDown)
+            canvas().removeEventListener('mousedown', onMouseDown)
             canvas().removeEventListener('wheel', onWheel)
         }
     }, [registerAgain])

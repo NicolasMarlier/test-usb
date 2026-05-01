@@ -56,3 +56,30 @@ export const addNoteAtTick = (props: AddNoteAtTickProps) => insertNotesAtTick(
         }
     })
 
+
+
+interface InsertPatternsAtTickProps {
+    tick: number
+    midiPatternsToInsert: MidiPattern[]
+    midiPatterns: MidiPattern[]
+    ppq: number
+}
+export const insertPatternsAtTick = (props: InsertPatternsAtTickProps) => {
+    const { midiPatterns, midiPatternsToInsert, tick } = props
+    if(midiPatternsToInsert.length == 0) return midiPatterns
+    const initialTick = midiPatternsToInsert.reduce((minTick, {ticks}) => Math.min(ticks, minTick), midiPatternsToInsert[0].ticks)
+
+
+    const newMidiPatterns = midiPatternsToInsert.map(p => ({
+        ticks: p.ticks + tick - initialTick,
+        durationTicks: p.durationTicks,
+        midi_notes: p.midi_notes.map(n => ({
+            ticks: n.ticks + tick - initialTick,
+            durationTicks: n.durationTicks,
+            midi: n.midi
+        }))
+    }))
+
+    
+    return [...midiPatterns, ...newMidiPatterns].toSorted((a, b) => a.ticks - b.ticks)
+}

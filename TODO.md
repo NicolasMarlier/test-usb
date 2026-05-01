@@ -56,7 +56,18 @@
 [X] Playback wave form should be displayed
 [X] Navigating with arrow should navigate
 
-
+- M7 Patterns
+[X] Data model
+[X] Select pattern
+[X] Split pattern
+[X] Delete pattern
+[X] Copy / paste pattern
+[X] Edit mode by default
+[X] Fix perf issue
+[ ] Reimplement recording
+[ ] Reimplent manual edition of notes
+[ ] Fix props naming camelcase VS
+[ ] Ability to repeat a pattern
 
 
 

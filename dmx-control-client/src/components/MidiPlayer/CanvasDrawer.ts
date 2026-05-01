@@ -1,14 +1,14 @@
-import { midiKeyToPixelsHeight, midiKeyToPixelsOffset, ticksDurationToPixels, ticksOffsetToPixels } from "./utils";
+import { midiKeyToPixelsHeight, midiKeyToPixelsOffset, midiPatternToRectangle, ticksDurationToPixels, ticksOffsetToPixels } from "./utils";
 
 interface Props {
     canvas: HTMLCanvasElement
-    midiNotes: MidiNote[]
+    midiPatterns: MidiPattern[]
     ticksScroll: number
     pixelsPerBeat: number
     audioWaveData: Uint8Array
     ppq: number
     allMidiKeys: MidiKey[]
-    selectedMidiNotes: MidiNote[]
+    selectedMidiPatterns: MidiPattern[]
     currentMidiTick: number
     aimedMidiNote: MidiNote | null
     mouseSelection: Rectangle | null
@@ -128,26 +128,48 @@ const drawBeatsNumbers = (props: DrawerFunctionProps) => {
     }
 }
 
-const drawMidiNotes = (props: DrawerFunctionProps, params: {midiNotes: MidiNote[], selectedMidiNotes: MidiNote[], currentMidiTick: number}) => {
+const drawMidiPatterns = (props: DrawerFunctionProps, params: {midiPatterns: MidiPattern[], selectedMidiPatterns: MidiPattern[], currentMidiTick: number}) => {
     const { ctx,  height, ticksScroll, pixelsPerBeat, allMidiKeys } = props
-    const { midiNotes, selectedMidiNotes, currentMidiTick } = params
-    midiNotes.forEach((midiNote) => {
-            ctx.fillStyle = "#ffffffaa";
+    const { midiPatterns, selectedMidiPatterns, currentMidiTick } = params
+    midiPatterns.forEach((midiPattern) => {
             
-            // Highlight when played
-            if(selectedMidiNotes.find((n) => midiNote.midi == n.midi && midiNote.ticks == n.ticks)) {
-                ctx.fillStyle = "#72cb3faa";
-            }
-            else if(currentMidiTick >= midiNote.ticks && currentMidiTick < midiNote.ticks + midiNote.durationTicks) {
-                ctx.fillStyle = "#ffffffcc";
-            }
 
-            ctx.fillRect(
-                ticksOffsetToPixels(midiNote.ticks, ticksScroll, pixelsPerBeat) + 1,
-                midiKeyToPixelsOffset(midiNote.midi, height, allMidiKeys),
-                ticksDurationToPixels(midiNote.durationTicks, pixelsPerBeat) - 1,
-                midiKeyToPixelsHeight(height)
+            ctx.fillStyle = "#48ff00aa";
+            if(selectedMidiPatterns.find((n) => n.ticks == midiPattern.ticks)) {
+                ctx.fillStyle = "#ff0000";
+            }
+            
+            const rect = midiPatternToRectangle(
+                midiPattern,
+                height,
+                ticksScroll,
+                pixelsPerBeat
             )
+            ctx.beginPath();
+            ctx.roundRect(
+                rect.x0,
+                rect.y0,
+                rect.x1 - rect.x0 - 1,
+                rect.y1 - rect.y0,
+                4
+            )
+            ctx.fill();
+            midiPattern.midi_notes.forEach((midiNote) => {
+                ctx.fillStyle = "#ffffffaa";
+                
+                // Highlight when played
+                if(currentMidiTick >= midiNote.ticks && currentMidiTick < midiNote.ticks + midiNote.durationTicks) {
+                    ctx.fillStyle = "#ffffffcc";
+                }
+
+                ctx.fillRect(
+                    ticksOffsetToPixels(midiNote.ticks, ticksScroll, pixelsPerBeat) + 1,
+                    midiKeyToPixelsOffset(midiNote.midi, height, allMidiKeys),
+                    ticksDurationToPixels(midiNote.durationTicks, pixelsPerBeat) - 1,
+                    midiKeyToPixelsHeight(height)
+                )
+            })
+            
         })
 }
 
@@ -188,10 +210,10 @@ const drawCurrentSelection = (props: DrawerFunctionProps, mouseSelection: Rectan
 export const redrawFullCanvas = (props: Props) => {
         const {
             canvas,
-            midiNotes,
+            midiPatterns,
             audioWaveData,
             aimedMidiNote,
-            selectedMidiNotes,
+            selectedMidiPatterns,
             currentMidiTick,
             mouseSelection
         } = props
@@ -223,7 +245,7 @@ export const redrawFullCanvas = (props: Props) => {
         // Middle part
         drawBeatsGrid(drawerFunctionProps)
         drawMidiKeysGrid(drawerFunctionProps)
-        drawMidiNotes(drawerFunctionProps, {midiNotes, selectedMidiNotes, currentMidiTick})
+        drawMidiPatterns(drawerFunctionProps, {midiPatterns, selectedMidiPatterns, currentMidiTick})
         if(aimedMidiNote) {
             drawAimedMidiNote(drawerFunctionProps, aimedMidiNote)
         }

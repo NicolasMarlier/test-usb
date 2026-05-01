@@ -90,7 +90,7 @@ export class DmxLoop extends EventEmitter {
     reloadMidi = async() => {
         const program = await Program.findByPk(this.current_program_id)
         const dmxMidi = await program?.getOrInitDmxMidi()
-        this.dmxMidiHandler.setMidiNotes(dmxMidi?.midi_notes || [])
+        this.dmxMidiHandler.setMidiPatterns(dmxMidi?.midi_patterns || [])
     }
 
     applyDmxButtonToDmxSignal = (dmxButton: DmxButton, dmxHexSignal: string) => {

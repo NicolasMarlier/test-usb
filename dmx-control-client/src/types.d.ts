@@ -51,12 +51,19 @@ type MidiNote = {
     durationTicks: number
 }
 
-type DmxMidi = {
+
+type MidiPattern = {
+    ticks: number
     midi_notes: MidiNote[]
+    durationTicks: number
+}
+
+type DmxMidi = {
+    midi_patterns: MidiPattern[]
 }
 
 type DmxMidiUpdateParams = {
-    midi_notes: MidiNote[]
+    midi_patterns: MidiPattern[]
 }
 
 type ReceivedMidiKey = {

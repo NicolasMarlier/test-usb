@@ -1,7 +1,7 @@
 import './NoteEditor.scss'
 import { useEffect, useRef, useState } from 'react'
 import { NOTE_ROW_HEIGHT, PIANO_KEY_WIDTH, TIMELINE_HEIGHT, redrawNoteEditor } from './NoteEditorCanvasDrawer'
-import { PPQ, pixelsOffsetToTicks } from './utils'
+import { PPQ, xToTicks } from './utils'
 import { buildRowKeys } from './utils_midi_notes'
 import { useDmxMidiContext } from '../../contexts/DmxMidiContext'
 
@@ -26,7 +26,7 @@ const NoteEditor = (props: Props) => {
     const canvasRef = useRef<HTMLCanvasElement>(null)
 
     const [selectedNotes, setSelectedNotes] = useState<MidiNote[]>([])
-    const [ticksScroll, setTicksScroll] = useState(0)
+    const [ticksScroll, setTicksScroll] = useState(pattern.ticks)
     const [pixelsPerBeat, setPixelsPerBeat] = useState(DEFAULT_PIXELS_PER_BEAT)
     const [ghostNote, setGhostNote] = useState<MidiNote | null>(null)
 
@@ -63,21 +63,31 @@ const NoteEditor = (props: Props) => {
 
     useEffect(() => {
         setSelectedNotes([])
-        setTicksScroll(0)
+        setTicksScroll(pattern.ticks)
         dragStateRef.current = { type: 'none' }
         dragDeltaRef.current = { ticks: 0, row: 0 }
         selectionRectRef.current = null
-    }, [pattern?.ticks])
+    }, [pattern.ticks])
 
     const triggerRedraw = () => setGhostNote(g => g)
 
     // ── Coordinate helpers ────────────────────────────────────────────────────────
 
-    const rawXToTicks = (x: number) =>
-        pixelsOffsetToTicks(x - PIANO_KEY_WIDTH, patternRef.current.ticks + ticksScrollRef.current, pixelsPerBeatRef.current)
+    const rawXToTicks = (x: number) => xToTicks({
+        x,
+        ticksScroll: ticksScrollRef.current,
+        pixelsPerBeat: pixelsPerBeatRef.current,
+        x0: PIANO_KEY_WIDTH
+    })
 
-    const xToQuantizedTick = (x: number) =>
-        pixelsOffsetToTicks(x - PIANO_KEY_WIDTH, patternRef.current.ticks + ticksScrollRef.current, pixelsPerBeatRef.current, { magnet: true, magnetMode: 'line' })
+    const xToQuantizedTick = (x: number) => xToTicks({
+        x,
+        ticksScroll: ticksScrollRef.current,
+        pixelsPerBeat: pixelsPerBeatRef.current,
+        x0: PIANO_KEY_WIDTH,
+        magnet: true,
+        magnetMode: 'line'
+    })
 
     const yToRowIndex = (y: number) => Math.floor((y - TIMELINE_HEIGHT) / NOTE_ROW_HEIGHT)
 
@@ -97,7 +107,7 @@ const NoteEditor = (props: Props) => {
     const noteInRect = (note: MidiNote, rect: Rectangle) => {
         const ri = rowIndexOf(note)
         if (ri < 0) return false
-        const nx0 = PIANO_KEY_WIDTH + (note.ticks - patternRef.current.ticks - ticksScrollRef.current) * pixelsPerBeatRef.current / PPQ
+        const nx0 = PIANO_KEY_WIDTH + (note.ticks - ticksScrollRef.current) * pixelsPerBeatRef.current / PPQ
         const nx1 = nx0 + note.durationTicks * pixelsPerBeatRef.current / PPQ
         const ny0 = TIMELINE_HEIGHT + ri * NOTE_ROW_HEIGHT
         const ny1 = ny0 + NOTE_ROW_HEIGHT
@@ -236,7 +246,7 @@ const NoteEditor = (props: Props) => {
         e.preventDefault()
 
         if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) {
-            setTicksScroll(prev => Math.max(0, prev + e.deltaX * PPQ / pixelsPerBeatRef.current * 0.5))
+            setTicksScroll(prev => Math.max(pattern.ticks, prev + e.deltaX * PPQ / pixelsPerBeatRef.current * 0.5))
         } else if(e.deltaY != 0){
             setPixelsPerBeat(prev => Math.max(20, Math.min(240, prev * (1 - e.deltaY * 0.01))))
         }
@@ -285,7 +295,7 @@ const NoteEditor = (props: Props) => {
             canvas: canvasRef.current,
             pattern,
             sortedMidiKeys,
-            ticksScroll,
+            ticksScroll: ticksScrollRef.current,
             pixelsPerBeat,
             selectedNotes,
             ghostNote,

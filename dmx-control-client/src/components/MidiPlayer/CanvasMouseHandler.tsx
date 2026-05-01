@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { pixelsOffsetToMidiKeyIndex, pixelsOffsetToTicks } from "./utils";
+import { pixelsOffsetToMidiKeyIndex, xToTicks } from "./utils";
 
 interface Props {
     onClickTimeline: (tick: number) => void
@@ -57,29 +57,31 @@ const CanvasMouseHandler = (props: Props) => {
         currentSelection.current = undefined
     }
 
+    const rawXToTicks = (x: number) => xToTicks({
+        x,
+        ticksScroll,
+        pixelsPerBeat,
+        magnet: true,
+        magnetMode: 'line'
+    })
+
     const onMouseDown = (event: MouseEvent) => {
         if(event.clientY - canvasTop() >= 0 &&
             event.clientY - canvasTop() < canvasHeight() / 5 &&
             onClickTimeline) {
             
             currentSelection.current = undefined
-            onClickTimeline(
-                pixelsOffsetToTicks(event.clientX - canvasLeft(), ticksScroll, pixelsPerBeat, {magnet: true, magnetMode: 'line'})
-            )
+            onClickTimeline(rawXToTicks(event.clientX - canvasLeft()))
             
             return
         }
         else if(event.clientY - canvasTop() > canvasHeight() / 5 &&
             event.clientY - canvasTop() < 3 * canvasHeight() / 5) {
             currentSelection.current = undefined
-            onClickMain(
-                pixelsOffsetToTicks(event.clientX - canvasLeft(), ticksScroll, pixelsPerBeat, {magnet: true, magnetMode: 'line'})
-            )
+            onClickMain(rawXToTicks(event.clientX - canvasLeft()))
         } 
         else {
-            onClickAudioWave(
-                pixelsOffsetToTicks(event.clientX - canvasLeft(), ticksScroll, pixelsPerBeat, {magnet: true, magnetMode: 'line'})
-            )
+            onClickAudioWave(rawXToTicks(event.clientX - canvasLeft()))
             currentSelection.current = {
                 x0: event.clientX - canvasLeft(),
                 y0: event.clientY - canvasTop(),
@@ -114,12 +116,12 @@ const CanvasMouseHandler = (props: Props) => {
         if(!onOver) return
 
         onOver({
-            tick: pixelsOffsetToTicks(
-                event.clientX - canvasLeft(),
+            tick: xToTicks({
+                x: event.clientX - canvasLeft(),
                 ticksScroll,
                 pixelsPerBeat,
-                {magnet: true}
-            ),
+                magnet: true
+            }),
             midiKeyIndex: pixelsOffsetToMidiKeyIndex(
                 event.clientY - canvasTop(),
                 canvasHeight()

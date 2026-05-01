@@ -18,8 +18,8 @@ export const buildRowKeys = (rawKeys: MidiKey[], minRows = 6): MidiKey[] => {
     }
     return result.sort((a, b) => b - a)
 }
-const includes = (a: MidiNote[], midiNote: MidiNote) => !!a.find(mn => midiNoteEqual(mn, midiNote))
-const subtract = (a: MidiNote[], b: MidiNote[]) => a.filter((mn) => !includes(b, mn))
+export const midiNotesIncludes = (a: MidiNote[], midiNote: MidiNote) => a.some(mn => midiNoteEqual(mn, midiNote))
+const subtract = (a: MidiNote[], b: MidiNote[]) => a.filter((mn) => !midiNotesIncludes(b, mn))
 const union = (a: MidiNote[], b: MidiNote[]) => [...subtract(a, b), ...b]
 const outer_join = (a: MidiNote[], b: MidiNote[]) => union(subtract(a,b), subtract(b, a))
 

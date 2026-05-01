@@ -20,11 +20,12 @@ export const ticksDurationToPixels = (ticksDuration: number, pixelsPerBeat: numb
 export const ticksOffsetToPixels = (tick: number, ticksScroll: number, pixelsPerBeat: number, baseOffset=0) =>
     ticksDurationToPixels(tick -  ticksScroll, pixelsPerBeat) + baseOffset
 
-export const pixelsOffsetToTicks = (pixelsOffset: number, ticksScroll: number, pixelsPerBeat: number, options?: {magnet?: boolean, magnetMode?: 'line'}) => {
-    const aimedTick = (pixelsOffset / pixelsPerBeat * PPQ + ticksScroll)
-    if(options?.magnet) {
+export const xToTicks = (props: {x: number, ticksScroll: number, pixelsPerBeat: number, x0?: number, magnet?: boolean, magnetMode?: 'line'}) => {
+    const { x, ticksScroll, pixelsPerBeat, x0, magnet, magnetMode } = props
+    const aimedTick = ((x - (x0 || 0)) / pixelsPerBeat * PPQ + ticksScroll)
+    if(magnet) {
         const beatMagnet = 0.25
-        if(options?.magnetMode == 'line') {
+        if(magnetMode == 'line') {
             return PPQ * Math.round((aimedTick / PPQ) / beatMagnet) * beatMagnet
         }
         return PPQ * Math.floor((aimedTick / PPQ) / beatMagnet) * beatMagnet

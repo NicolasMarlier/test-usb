@@ -1,4 +1,4 @@
-import { drawCurrentTick, type DrawerFunctionProps } from "./GenericCanvasDrawer";
+import { drawBeatsGrid, drawTimeline, drawCurrentTick, type DrawerFunctionProps, drawCurrentSelection } from "./GenericCanvasDrawer";
 import { midiKeyToPixelsHeight, midiKeyToPixelsOffset, midiPatternToRectangle, setupCanvasDPR, ticksDurationToPixels, ticksOffsetToPixels } from "./utils";
 
 interface Props {
@@ -17,7 +17,19 @@ interface Props {
 
 
 const drawAudioWave = (props: DrawerFunctionProps, audioWaveData: Uint8Array) => {
-    const { ctx, ticksScroll, pixelsPerBeat, height } = props
+    const { ctx, ticksScroll, pixelsPerBeat, width, height } = props
+
+    ctx.fillStyle = "#000000aa";
+    ctx.beginPath();
+    ctx.roundRect(
+        0,
+        3 * height / 5,
+        width,
+        2 * height / 5,
+        4
+    )
+    ctx.fill();
+    
     ctx.fillStyle = "#ffffff06";
     audioWaveData.forEach((dataPoint, ticks) => {
         const dataPointHeight = dataPoint * height * 2 / (255 * 5)
@@ -28,85 +40,6 @@ const drawAudioWave = (props: DrawerFunctionProps, audioWaveData: Uint8Array) =>
             dataPointHeight
         )
     })
-}
-
-const drawBeatsGrid = (props: DrawerFunctionProps) => {
-    const { ctx, ppq, height, ticksScroll, pixelsPerBeat } = props
-    for(let tick=0; tick <= ppq * 60 * 10; tick+= 1) {
-        if(primaryGridRatio(tick, props)) {
-            ctx.fillStyle = "#000000";
-            ctx.fillRect(
-                ticksOffsetToPixels(tick, ticksScroll, pixelsPerBeat),
-                height / 5,
-                1,
-                height * 2 / 5
-            )
-        }
-        else if(secondaryGridRatio(tick, props)) {
-            ctx.fillStyle = "#00000044";
-            ctx.fillRect(
-                ticksOffsetToPixels(tick, ticksScroll, pixelsPerBeat),
-                height / 5,
-                1,
-                height * 2 / 5
-            )
-        }
-        
-    }
-}
-
-const drawMidiKeysGrid = (props: DrawerFunctionProps) => {
-    const { allMidiKeys, ctx,  width, height } = props
-    allMidiKeys.forEach(midiKey => {
-        ctx.fillStyle = "#00000022"
-        ctx.fillRect(
-            0,
-            midiKeyToPixelsOffset(midiKey, height, allMidiKeys),
-            width,
-            1
-        )
-        ctx.fillRect(
-            0,
-            midiKeyToPixelsOffset(midiKey, height, allMidiKeys) +
-            midiKeyToPixelsHeight(height),
-            width,
-            1
-        )
-    })
-}
-
-const primaryGridRatio = (tick: number, props: DrawerFunctionProps)  => {
-    const { ppq, pixelsPerBeat } = props
-    if(pixelsPerBeat > 20) return tick % ppq == 0
-    else if(pixelsPerBeat > 10) return tick % (ppq * 4) == 0
-    else return tick % (ppq * 16) == 0
-}
-const secondaryGridRatio = (tick: number, props: DrawerFunctionProps)  => {
-    const { ppq, pixelsPerBeat } = props
-    if(pixelsPerBeat > 20) return tick % (ppq / 4) == 0
-    else if(pixelsPerBeat > 10) return tick % ppq == 0
-    else return tick % (ppq * 4) == 0
-}
-
-const drawBeatsNumbers = (props: DrawerFunctionProps) => {
-    const { ctx, ppq, ticksScroll, pixelsPerBeat, height, width } = props
-    ctx.fillStyle = "#222222";
-    ctx.fillRect(
-        Math.max(0, ticksOffsetToPixels(0, ticksScroll, pixelsPerBeat)),
-        height / 5,
-        width,
-        2 * height / 5
-    )
-    
-    ctx.font = "14px Tahoma";
-    ctx.textAlign = "left"
-    ctx.textBaseline = "middle"
-    ctx.fillStyle = "#ffffff66";
-    for(let tick=0; tick <= ppq * 60 * 10; tick+= 1) {
-        if(primaryGridRatio(tick, props)) {
-            ctx.fillText(`${tick / ppq + 1}`, ticksOffsetToPixels(tick, ticksScroll, pixelsPerBeat) + 5, 10);
-        }
-    }
 }
 
 const drawMidiPatterns = (props: DrawerFunctionProps, params: {midiPatterns: MidiPattern[], selectedMidiPatterns: MidiPattern[], currentMidiTick: number}) => {
@@ -165,17 +98,6 @@ const drawAimedMidiNote = (props: DrawerFunctionProps, aimedMidiNote: MidiNote) 
     )
 }
 
-const drawCurrentSelection = (props: DrawerFunctionProps, mouseSelection: Rectangle) => {
-    const { ctx } = props
-    ctx.strokeStyle = "#ffffff88";
-    ctx.strokeRect(
-        mouseSelection.x0,
-        mouseSelection.y0,
-        mouseSelection.x1 - mouseSelection.x0,
-        mouseSelection.y1 - mouseSelection.y0,
-    )
-}
-
 
 export const redrawFullCanvas = (props: Props) => {
         const {
@@ -198,20 +120,23 @@ export const redrawFullCanvas = (props: Props) => {
             ...{
                 width,
                 height,
-                ctx
+                ctx,
+                baseYOffset: height/5
             }
         }
         
         // Background
-        ctx.fillStyle = "#000";
+        ctx.fillStyle = "#222";
         ctx.fillRect(0, 0, width, height)
+        ctx.fillStyle = "#000";
+        ctx.fillRect(0, 0, width, height/5)
+        drawBeatsGrid(drawerFunctionProps)
 
         // Top part
-        drawBeatsNumbers(drawerFunctionProps)
+        drawTimeline(drawerFunctionProps)
         
         // Middle part
-        drawBeatsGrid(drawerFunctionProps)
-        drawMidiKeysGrid(drawerFunctionProps)
+        
         drawMidiPatterns(drawerFunctionProps, {midiPatterns, selectedMidiPatterns, currentMidiTick})
         if(aimedMidiNote) {
             drawAimedMidiNote(drawerFunctionProps, aimedMidiNote)

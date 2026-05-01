@@ -1,13 +1,6 @@
 export const splitPatternsAtTick = (midiPatterns: MidiPattern[], tick: number) => {
     let newPatterns = [] as MidiPattern[]
     midiPatterns.forEach((pattern) => {
-        console.log(
-            pattern.ticks,
-            tick,
-            pattern.ticks + pattern.durationTicks,
-            pattern.ticks < tick,
-            (pattern.ticks + pattern.durationTicks) > tick
-        )
         if(
             pattern.ticks < tick
             && (pattern.ticks + pattern.durationTicks) > tick) {

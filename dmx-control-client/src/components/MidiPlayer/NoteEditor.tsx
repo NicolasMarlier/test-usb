@@ -17,7 +17,9 @@ interface Props {
 }
 const NoteEditor = (props: Props) => {
     const { pattern } = props
-    const { updateSelectedMidiPatternNotes, allMidiKeys, activeEditor, setActiveEditor } = useDmxMidiContext()
+    const {
+        updateSelectedMidiPatternNotes, allMidiKeys, activeEditor, setActiveEditor,
+        midiCurrentTick, setMidiCurrentTick } = useDmxMidiContext()
 
     const isFocused = activeEditor == 'PatternEditor'
     
@@ -123,9 +125,7 @@ const NoteEditor = (props: Props) => {
         const x = e.clientX - rect.left
         const y = e.clientY - rect.top
 
-        if (y < TIMELINE_HEIGHT || x < PIANO_KEY_WIDTH) return
-        const midiKey = yToMidiKey(y)
-        if (midiKey === undefined) return
+        if (x < PIANO_KEY_WIDTH) return
 
         const clickedNote = noteAtPos(x, y)
         if (clickedNote) {
@@ -136,6 +136,8 @@ const NoteEditor = (props: Props) => {
                 setSelectedNotes(e.shiftKey ? [...selectedNotesRef.current, clickedNote] : [clickedNote])
             dragStateRef.current = { type: 'move', startRawTick: rawXToTicks(x), startRow: rowIndexOf(clickedNote) }
             dragDeltaRef.current = { ticks: 0, row: 0 }
+        } else if (y < TIMELINE_HEIGHT) {
+            setMidiCurrentTick(xToQuantizedTick(x))
         } else {
             if (!e.shiftKey) setSelectedNotes([])
             dragStateRef.current = { type: 'rubber-band', x0: x, y0: y, x1: x, y1: y }
@@ -232,12 +234,11 @@ const NoteEditor = (props: Props) => {
 
     const onWheel = (e: WheelEvent) => {
         e.preventDefault()
-        if (e.metaKey || e.ctrlKey) {
-            setPixelsPerBeat(prev => Math.max(20, Math.min(240, prev * (1 - e.deltaY * 0.01))))
-        } else if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) {
+
+        if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) {
             setTicksScroll(prev => Math.max(0, prev + e.deltaX * PPQ / pixelsPerBeatRef.current * 0.5))
-        } else {
-            setTicksScroll(prev => Math.max(0, prev + e.deltaY * PPQ / pixelsPerBeatRef.current * 0.5))
+        } else if(e.deltaY != 0){
+            setPixelsPerBeat(prev => Math.max(20, Math.min(240, prev * (1 - e.deltaY * 0.01))))
         }
     }
 
@@ -288,6 +289,7 @@ const NoteEditor = (props: Props) => {
             pixelsPerBeat,
             selectedNotes,
             ghostNote,
+            currentMidiTick: midiCurrentTick,
             selectionRect: selectionRectRef.current,
             dragDeltaTicks: dragDeltaRef.current.ticks,
             dragDeltaRow: dragDeltaRef.current.row,

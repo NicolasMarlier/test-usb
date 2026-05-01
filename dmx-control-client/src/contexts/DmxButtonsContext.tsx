@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useState } from "react";
 
-import { createDmxButton, deleteDmxButton, listDmxButtons, listPrograms, updateDmxButton } from "../ApiClient";
+import { createDmxButton, deleteDmxButton, listDmxButtons, listPrograms, selectProgram, updateDmxButton } from "../ApiClient";
 
 interface DmxButtonsContextType {
   dmxButtons: DmxButton[]
@@ -58,7 +58,12 @@ export const DmxButtonsContextProvider = ({ children }: {children: React.ReactNo
   }, [program])
 
   useEffect(() => {
-    setProgram(programs.find((p) => p.id == currentProgramId))
+    if(currentProgramId) {
+      setProgram(programs.find((p) => p.id == currentProgramId))  
+    }
+    else if(programs.length > 0) {
+      selectProgram(programs[0].id)
+    }
   }, [programs, currentProgramId])
 
   const availableTriggeringMidiKeys = () => [

@@ -1,18 +1,39 @@
-import { useEffect, useRef } from "react"
+import { useEffect, useRef, useState } from "react"
 import SmallButton from "../DesignSystem/SmallButton/SmallButton"
 import { PauseIcon, PlayIcon, StopIcon } from "./Icons"
+import { useDmxButtonsContext } from "../../contexts/DmxButtonsContext"
+import { getProgramAudio } from "../../ApiClient"
+import { tickToTime, timeToTick } from "./utils"
+import { useRealTimeContext } from "../../contexts/RealTimeContext"
+import { useDmxMidiContext } from "../../contexts/DmxMidiContext"
 
-interface Props {
-    disabled: boolean
-    audioUrl: string | undefined
-    isPlaying: boolean
-    onCurrentTimeUpdate: (currentTime: number) => void
-    setIsPlaying: (isPlaying: boolean) => void
-    currentTime: number
-}
+const AudioPlayer = () => {
+    const { program } = useDmxButtonsContext()
+    const { sendCurrentTickToServer } = useRealTimeContext()
+    const { midiCurrentTick } = useDmxMidiContext()
+    const [isPlaying, setIsPlaying] = useState(false)
 
-const AudioPlayer = (props: Props) => {
-    const { disabled, audioUrl, isPlaying, setIsPlaying, onCurrentTimeUpdate, currentTime } = props
+    const [audioUrl, setAudioUrl] = useState<string | undefined>(undefined)
+
+    const fetchAudioUrl = () => {
+        if(program?.id) {
+            getProgramAudio(program.id).then((audioUrl) => setAudioUrl(audioUrl || undefined))
+        }
+        else {
+            setAudioUrl(undefined)
+        }
+    }
+
+
+    useEffect(fetchAudioUrl, [program])
+
+    useEffect(() => {
+        if(!program) return
+        if(!audioRef.current) return
+        if(!audioRef.current.paused) return
+
+        audioRef.current.currentTime = tickToTime(midiCurrentTick, program.bpm)
+    }, [midiCurrentTick])
 
     const audioRef = useRef<HTMLAudioElement>(null)
 
@@ -32,25 +53,19 @@ const AudioPlayer = (props: Props) => {
     const onRewindButton = () => {
         if(!audioRef.current) return 
         audioRef.current.currentTime = 0
-        onCurrentTimeUpdate(0)
+        sendCurrentTickToServer(0)
     }
 
     useEffect(() => {
-        if(isPlaying) {
+        if(isPlaying && program) {
             const audioInterval = setInterval(() => {
                 if(audioRef.current) {
-                    onCurrentTimeUpdate(audioRef.current.currentTime)
+                    sendCurrentTickToServer(timeToTick(audioRef.current.currentTime, program.bpm))
                 }
             }, 30)
             return () => clearInterval(audioInterval)
         }
-    }, [isPlaying, onCurrentTimeUpdate])
-
-    useEffect(() => {
-        if(!audioRef.current) return
-        if(!currentTime) return
-        audioRef.current.currentTime = currentTime
-    }, [currentTime])
+    }, [isPlaying])
 
     const onKeyDown = (e: KeyboardEvent) => {
         if(e.key == ' ') (isPlaying ? pause : play)()
@@ -69,14 +84,13 @@ const AudioPlayer = (props: Props) => {
             src={audioUrl}/>
         <SmallButton
             value={isPlaying}
-            onClick={() => {(isPlaying ? pause : play)() }}
-                disabled={disabled}>
+            onClick={() => {(isPlaying ? pause : play)() }}>
             { isPlaying ? <PauseIcon/> : <PlayIcon/> }
         </SmallButton>
         <SmallButton
             value={false}
             onClick={onRewindButton}
-            disabled={disabled || isPlaying}>
+            disabled={isPlaying}>
             <StopIcon/>
         </SmallButton>
     </>

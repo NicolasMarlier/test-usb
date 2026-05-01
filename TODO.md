@@ -65,7 +65,7 @@
 [X] Edit mode by default
 [X] Fix perf issue
 [ ] Reimplement recording
-[ ] Reimplent manual edition of notes
+[X] Reimplent manual edition of notes
 [ ] Fix props naming camelcase VS
 [ ] Ability to repeat a pattern
 

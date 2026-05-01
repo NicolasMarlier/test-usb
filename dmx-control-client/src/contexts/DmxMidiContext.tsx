@@ -11,6 +11,12 @@ interface DmxMidiContextType {
     allMidiKeys: MidiKey[]
     activeEditor: 'TrackEditor' | 'PatternEditor'
     setActiveEditor: (v: 'TrackEditor' | 'PatternEditor') => void
+
+    midiCurrentTick: number,
+    setMidiCurrentTick: (v: number) => void
+
+    isRecording: boolean,
+    setIsRecording: (v: boolean) => void
 }
 
 const DmxMidiContext = createContext<DmxMidiContextType | null>(null)
@@ -31,6 +37,7 @@ export const DmxMidiContextProvider = ({ children }: {children: React.ReactNode}
     const { currentProgramId, dmxButtons } = useDmxButtonsContext()
     const [selectedMidiPatterns, setSelectedMidiPatterns] = useState<MidiPattern[]>([])
     const [midiPatterns, setMidiPatterns] = useState<MidiPattern[]>([])
+    const [midiCurrentTick, setMidiCurrentTick] = useState(0)
 
     const fetchDmxMidi = () => {
         if(!currentProgramId) return
@@ -50,24 +57,23 @@ export const DmxMidiContextProvider = ({ children }: {children: React.ReactNode}
     }
 
     const updateSelectedMidiPatternNotes = (updatedNotes: MidiNote[]) => {
-        console.log("yo")
         if(selectedMidiPatterns.length != 1) return
-
-        console.log("yo1")
 
         const newPatterns = midiPatterns.map(p =>
             p.ticks === selectedMidiPatterns[0].ticks ? { ...p, midi_notes: updatedNotes } : p
         )
-        console.log("yo2")
         updateProgramDmxMidiAndSync(newPatterns)
     }
 
     const allMidiKeys = (dmxButtons.flatMap(({triggering_midi_key}) => triggering_midi_key) || []).toSorted() as MidiKey[]
 
     const [activeEditor, setActiveEditor] = useState<'TrackEditor' | 'PatternEditor'>('TrackEditor')
+
+    const [isRecording, setIsRecording] = useState(false)
         
 
-    useEffect(() => { fetchDmxMidi() }, [currentProgramId])
+    useEffect(fetchDmxMidi, [currentProgramId])
+    useEffect(() => setIsRecording(false), [currentProgramId])
 
     return (
         <DmxMidiContext.Provider value={ {
@@ -81,7 +87,13 @@ export const DmxMidiContextProvider = ({ children }: {children: React.ReactNode}
 
             allMidiKeys,
             activeEditor,
-            setActiveEditor
+            setActiveEditor,
+
+            isRecording,
+            setIsRecording,
+
+            midiCurrentTick,
+            setMidiCurrentTick,
             } }>
             {children}
         </DmxMidiContext.Provider>

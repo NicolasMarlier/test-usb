@@ -1,3 +1,4 @@
+import { drawCurrentTick, type DrawerFunctionProps } from "./GenericCanvasDrawer";
 import { midiKeyToPixelsHeight, midiKeyToPixelsOffset, midiPatternToRectangle, setupCanvasDPR, ticksDurationToPixels, ticksOffsetToPixels } from "./utils";
 
 interface Props {
@@ -12,18 +13,6 @@ interface Props {
     currentMidiTick: number
     aimedMidiNote: MidiNote | null
     mouseSelection: Rectangle | null
-    
-}
-
-interface DrawerFunctionProps {
-    canvas: HTMLCanvasElement,
-    width: number
-    height: number
-    ctx: CanvasRenderingContext2D
-    ticksScroll: number
-    pixelsPerBeat: number
-    ppq: number
-    allMidiKeys: MidiKey[]
 }
 
 
@@ -173,17 +162,6 @@ const drawAimedMidiNote = (props: DrawerFunctionProps, aimedMidiNote: MidiNote) 
         midiKeyToPixelsOffset(aimedMidiNote.midi, height, allMidiKeys),
         ticksDurationToPixels(aimedMidiNote.durationTicks, pixelsPerBeat) - 1,
         midiKeyToPixelsHeight(height)
-    )
-}
-
-const drawCurrentTick = (props: DrawerFunctionProps, currentMidiTick: number) => {
-    const { ctx, ticksScroll, pixelsPerBeat, height } = props
-    ctx.fillStyle = "#fff";
-    ctx.fillRect(
-        ticksOffsetToPixels(currentMidiTick, ticksScroll, pixelsPerBeat),
-        0,
-        1,
-        height
     )
 }
 

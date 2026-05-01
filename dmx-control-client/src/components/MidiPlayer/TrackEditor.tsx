@@ -1,15 +1,11 @@
-import './MidiPlayer.scss'
+import './TrackEditor.scss'
 
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { uploadProgramAudio, getProgramAudio } from '../../ApiClient';
-import { useRealTimeContext } from '../../contexts/RealTimeContext';
-import { useDmxButtonsContext } from '../../contexts/DmxButtonsContext';
-import Toggle from '../DesignSystem/Toggle/Toggle';
-import SmallButton from '../DesignSystem/SmallButton/SmallButton';
-import { RecordIcon } from './Icons.js'
+import { useEffect, useRef, useState } from 'react';
+import { uploadProgramAudio, getProgramAudio } from '../../ApiClient.js';
+import { useRealTimeContext } from '../../contexts/RealTimeContext.js';
+import { useDmxButtonsContext } from '../../contexts/DmxButtonsContext.js';
 import { computeWave } from './utils_audio.js';
-import AudioPlayer from './AudioPlayer.js';
-import { redrawFullCanvas } from './CanvasDrawer.js';
+import { redrawFullCanvas } from './TrackEditorCanvasDrawer.js';
 import Draggable from '../DesignSystem/Draggable/Draggable.js';
 import { insertPatternsAtTick, magnettedTick } from './utils_midi_notes.js';
 import { PPQ } from './utils.js';
@@ -17,7 +13,7 @@ import CanvasMouseHandler from './CanvasMouseHandler.js';
 import { useDmxMidiContext } from '../../contexts/DmxMidiContext.js';
 import { splitPatternsAtTick } from './utils_midi_patterns.js';
 
-const BEATS_OFFSET = 0.1
+const BEATS_OFFSET = 0.3
 
 interface Props {
     program: Program
@@ -28,35 +24,39 @@ const BASE_PIXELS_PER_BEAT = 40
 const MidiPlayer = (props: Props) => {
     const { program } = props
     const { dmxButtons } = useDmxButtonsContext()
-    const { midiPatterns, updateProgramDmxMidiAndSync, allMidiKeys, activeEditor, setActiveEditor, selectedMidiPatterns, setSelectedMidiPatterns } = useDmxMidiContext()
+    const {
+        midiPatterns,
+        updateProgramDmxMidiAndSync,
+        allMidiKeys,
+        activeEditor,
+        setActiveEditor,
+        selectedMidiPatterns,
+        setSelectedMidiPatterns,
+        isRecording,
+
+        midiCurrentTick,
+        setMidiCurrentTick,
+    } = useDmxMidiContext()
 
     const midiPatternsRef = useRef(midiPatterns)
     midiPatternsRef.current = midiPatterns
+    
     const selectedMidiPatternsRef = useRef(selectedMidiPatterns)
     selectedMidiPatternsRef.current = selectedMidiPatterns
     
-    const { midiCurrentTick: serverMidiCurrentTick, sendCurrentTickToServer, lastReceivedMidiKey } = useRealTimeContext()
-
-    const [isRecording, setIsRecording] = useState(false)
-    const [audioUrl, setAudioUrl] = useState<string | undefined>(undefined)
+    const { midiCurrentTick: serverMidiCurrentTick, lastReceivedMidiKey } = useRealTimeContext()
 
     const canvasRef = useRef<HTMLCanvasElement>(null)
     const mouseSelection = useRef<Rectangle>(null)
-
-    const [midiCurrentTick, setMidiCurrentTick] = useState(serverMidiCurrentTick)
 
     const [ticksScroll, setTicksScroll] = useState(midiCurrentTick - BEATS_OFFSET * PPQ)
     const [pixelsPerBeat, setPixelsPerBeat] = useState(BASE_PIXELS_PER_BEAT)
 
     const [audioWaveData, setAudioWaveData] = useState(new Uint8Array() as Uint8Array)
 
-    const [editMode, setEditMode] = useState(true)
-
     const aimedMidiNote = useRef<MidiNote>(null)
 
     const [canvasRedrawTrigger, setCanvasRedrawTrigger] = useState(0)
-
-    const [currentAudioTime, setCurrentAudioTime] = useState(0)
 
 
     const onMouseSelect = (selection: Rectangle) => {
@@ -81,7 +81,6 @@ const MidiPlayer = (props: Props) => {
     activeEditorRef.current = activeEditor
 
     const clipboard = useRef<MidiPattern[]>([])
-    const [isPlaying, setIsPlaying] = useState(false)
 
 
     const deleteSelectedMidiPatterns = () => {
@@ -118,21 +117,17 @@ const MidiPlayer = (props: Props) => {
             const targetTick = (magnettedTick(midiCurrentTick, PPQ, 1) - PPQ)
             setMidiCurrentTick(targetTick)
             setTicksScroll(targetTick - PPQ)
-            setCurrentAudioTime(targetTick * 60 / (PPQ * program.bpm))
         }
         else if(e.key == 'ArrowRight') {
             const targetTick = (magnettedTick(midiCurrentTick, PPQ, 1) + PPQ)
             setMidiCurrentTick(targetTick)
             setTicksScroll(targetTick - PPQ)
-            setCurrentAudioTime(targetTick * 60 / (PPQ * program.bpm))
         }
         else {
             shouldPreventDefault = false
         }
         if(shouldPreventDefault) e.preventDefault()
     }
-
-    const fetchAudio = () => getProgramAudio(program.id).then((audioUrl) => setAudioUrl(audioUrl || undefined))
 
     const selectAll = () => {
         setSelectedMidiPatterns(midiPatterns)
@@ -142,7 +137,6 @@ const MidiPlayer = (props: Props) => {
     const redrawMidiCanvas = () => {
         if(!canvasRef.current) return
         lastCanvasRedraw.current = Date.now()
-        console.log('redraw')
 
         redrawFullCanvas({
             canvas: canvasRef.current,
@@ -170,7 +164,8 @@ const MidiPlayer = (props: Props) => {
     }
 
     const onDropAudioFile = (file: File) => {
-        uploadProgramAudio(program.id, file).then(fetchAudio)
+        uploadProgramAudio(program.id, file)
+        //TODO: real-time update fetchAudio
     }
 
 
@@ -191,12 +186,6 @@ const MidiPlayer = (props: Props) => {
     }, [lastReceivedMidiKey, isRecording])
 
     useEffect(() => {
-        setAudioUrl(undefined)
-        setIsRecording(false)
-        fetchAudio()
-    }, [program])
-
-    useEffect(() => {
         triggerCanvasRedraw()
     }, [midiCurrentTick, ticksScroll, audioWaveData, midiPatterns, isRecording, pixelsPerBeat])
 
@@ -207,8 +196,14 @@ const MidiPlayer = (props: Props) => {
         return () => {
             document.removeEventListener("keydown", onKeyDown)
         }
-    }, [midiPatterns, ticksScroll, editMode, aimedMidiNote, midiCurrentTick])
+    }, [midiPatterns, ticksScroll, aimedMidiNote, midiCurrentTick])
 
+
+    const [audioUrl, setAudioUrl] = useState<string | undefined>(undefined)
+    const fetchAudioUrl = () => {
+        getProgramAudio(program.id).then((audioUrl) => setAudioUrl(audioUrl || undefined))
+    }
+    useEffect(fetchAudioUrl, [program])
     useEffect(() => {
         if(!audioUrl) {
             setAudioWaveData(new Uint8Array())
@@ -221,21 +216,13 @@ const MidiPlayer = (props: Props) => {
 
     useEffect(() => {
         const handleResize = () => triggerCanvasRedraw();
-
         window.addEventListener('resize', handleResize);
-
-        // Cleanup: Remove the event listener on unmount
         return () => window.removeEventListener('resize', handleResize);
     }, []);
-
-    const followAudioCurrentTime = useCallback((currentTime: number) => {
-        sendCurrentTickToServer(Math.round(currentTime * program.bpm / 60 * PPQ))
-    }, [program.bpm])
 
     const onClickTimeline = (tick: number) => {
         setActiveEditor('TrackEditor')
         setMidiCurrentTick(tick)
-        setCurrentAudioTime(tick * 60 / (PPQ * program.bpm))
         triggerCanvasRedraw()
     }
 
@@ -257,12 +244,11 @@ const MidiPlayer = (props: Props) => {
     }
 
     useEffect(() => {
-        if(!editMode || isPlaying) setMidiCurrentTick(serverMidiCurrentTick)
-    }, [editMode, serverMidiCurrentTick, dmxButtons, midiPatterns])
-
-    useEffect(() => {
-        if(!editMode || isPlaying) setTicksScroll(midiCurrentTick - BEATS_OFFSET * PPQ)
-    }, [midiCurrentTick, editMode])
+        if(midiCurrentTick != serverMidiCurrentTick) {
+            setMidiCurrentTick(serverMidiCurrentTick)
+            setTicksScroll(serverMidiCurrentTick - BEATS_OFFSET * PPQ)
+        }
+    }, [serverMidiCurrentTick, dmxButtons, midiPatterns])
 
     const lastCanvasRedraw = useRef<number>(null)
 
@@ -290,7 +276,7 @@ const MidiPlayer = (props: Props) => {
                     width="300"
                     height="30"
                     />
-                { editMode && <CanvasMouseHandler
+                <CanvasMouseHandler
                     onClickTimeline={onClickTimeline}
                     onClickMain={onClickMain}
                     onClickAudioWave={onClickAudioWave}
@@ -301,33 +287,8 @@ const MidiPlayer = (props: Props) => {
                     onMoveTicksScroll={onMoveTicksScroll}
                     onZoom={onZoom}
                     registerAgain={canvasRedrawTrigger}
-                />}
+                />
             </Draggable>
-            
-
-            
-            <div className='controls-panel'>
-                <div className='label'>
-                    <Toggle
-                        value={editMode}
-                        onChange={setEditMode}/>
-                    EDIT MODE
-                </div>
-                <div className='small-buttons-bar'>
-                    <SmallButton
-                        value={isRecording}
-                        onClick={() => setIsRecording(!isRecording)}>
-                        <RecordIcon/>
-                    </SmallButton>
-                    <AudioPlayer
-                        disabled={!editMode}
-                        audioUrl={audioUrl}
-                        isPlaying={isPlaying}
-                        currentTime={currentAudioTime}
-                        setIsPlaying={setIsPlaying}
-                        onCurrentTimeUpdate={followAudioCurrentTime}/>
-                </div>
-            </div>
         </div>
         
     </>)

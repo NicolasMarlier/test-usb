@@ -56,6 +56,7 @@ type MidiPattern = {
     ticks: number
     midi_notes: MidiNote[]
     durationTicks: number
+    loop_until_tick?: number
 }
 
 type DmxMidi = {

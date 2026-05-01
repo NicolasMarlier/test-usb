@@ -17,8 +17,8 @@ export const setupCanvasDPR = (
 export const ticksDurationToPixels = (ticksDuration: number, pixelsPerBeat: number) =>
     ticksDuration * pixelsPerBeat / PPQ
 
-export const ticksOffsetToPixels = (tick: number, ticksScroll: number, pixelsPerBeat: number) =>
-    ticksDurationToPixels(tick -  ticksScroll, pixelsPerBeat)
+export const ticksOffsetToPixels = (tick: number, ticksScroll: number, pixelsPerBeat: number, baseOffset=0) =>
+    ticksDurationToPixels(tick -  ticksScroll, pixelsPerBeat) + baseOffset
 
 export const pixelsOffsetToTicks = (pixelsOffset: number, ticksScroll: number, pixelsPerBeat: number, options?: {magnet?: boolean, magnetMode?: 'line'}) => {
     const aimedTick = (pixelsOffset / pixelsPerBeat * PPQ + ticksScroll)
@@ -103,3 +103,7 @@ export const isMidiNoteInRectangle = (selection: Rectangle, midiNote: MidiNote, 
 export const computedSelectedNotes = (selection: Rectangle, midiNotes: MidiNote[], height: number, midiKeys: MidiKey[], ticksScroll: number, pixelsPerBeat: number) => (
     midiNotes.filter(midiNote => isMidiNoteInRectangle(selection, midiNote, height, midiKeys, ticksScroll, pixelsPerBeat))
 )
+
+
+export const timeToTick = (timeInSeconds: number, bpm: number) => Math.round((timeInSeconds * bpm * PPQ) / 60)
+export const tickToTime = (tick: number, bpm: number) => (60.0 * tick) / (bpm * PPQ)

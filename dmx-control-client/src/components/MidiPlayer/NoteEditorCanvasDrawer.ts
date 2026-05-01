@@ -1,3 +1,4 @@
+import { drawCurrentTick, type DrawerFunctionProps } from './GenericCanvasDrawer'
 import { PPQ, setupCanvasDPR, ticksDurationToPixels, ticksOffsetToPixels } from './utils'
 import { isBlackKey, noteName } from './utils_midi_notes'
 
@@ -16,18 +17,32 @@ interface Props {
     selectionRect: Rectangle | null
     dragDeltaTicks: number
     dragDeltaRow: number
+    currentMidiTick: number
 }
 
 export const redrawNoteEditor = (props: Props) => {
     const {
         canvas, pattern, sortedMidiKeys, ticksScroll, pixelsPerBeat,
-        selectedNotes, ghostNote, selectionRect, dragDeltaTicks, dragDeltaRow
+        selectedNotes, ghostNote, selectionRect, dragDeltaTicks, dragDeltaRow,
+        currentMidiTick
     } = props
 
     const ctx = canvas.getContext('2d')
     if (!ctx) return
 
     const { width: cssWidth, height: cssHeight } = setupCanvasDPR(canvas, ctx)
+
+    const drawerFunctionProps: DrawerFunctionProps = {
+        ...props,
+        ...{
+            width: cssWidth,
+            height: cssHeight,
+            ctx,
+            ppq: PPQ,
+            allMidiKeys: sortedMidiKeys,
+            baseXOffset: PIANO_KEY_WIDTH
+        }
+    }
 
     const noteAreaWidth = cssWidth - PIANO_KEY_WIDTH
     const patternStartTick = pattern.ticks
@@ -162,4 +177,6 @@ export const redrawNoteEditor = (props: Props) => {
     ctx.fillRect(PIANO_KEY_WIDTH, TIMELINE_HEIGHT - 1, noteAreaWidth, 1)
     ctx.fillStyle = '#111'; ctx.fillRect(0, 0, PIANO_KEY_WIDTH, TIMELINE_HEIGHT)
     ctx.fillStyle = '#3a3a3a'; ctx.fillRect(0, TIMELINE_HEIGHT - 1, PIANO_KEY_WIDTH, 1)
+
+    drawCurrentTick(drawerFunctionProps, currentMidiTick)
 }

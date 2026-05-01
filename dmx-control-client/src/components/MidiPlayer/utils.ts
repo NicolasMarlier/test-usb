@@ -1,4 +1,18 @@
-const PPQ = 480
+export const PPQ = 480
+
+export const setupCanvasDPR = (
+    canvas: HTMLCanvasElement,
+    ctx: CanvasRenderingContext2D,
+    heightAdjust = 0
+): { width: number; height: number } => {
+    const dpr = window.devicePixelRatio || 1
+    const width = canvas.clientWidth
+    const height = canvas.clientHeight + heightAdjust
+    canvas.width = Math.floor(width * dpr)
+    canvas.height = Math.floor(height * dpr)
+    ctx.scale(dpr, dpr)
+    return { width, height }
+}
 
 export const ticksDurationToPixels = (ticksDuration: number, pixelsPerBeat: number) =>
     ticksDuration * pixelsPerBeat / PPQ
@@ -17,8 +31,6 @@ export const pixelsOffsetToTicks = (pixelsOffset: number, ticksScroll: number, p
     }
     return aimedTick
 }
-    
-
 
 
 export const midiKeyToPixelsOffset = (midiKey: MidiKey, height: number, midiKeys: MidiKey[]) => {    

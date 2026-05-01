@@ -8,28 +8,35 @@ import Statuses from './components/Statuses/Statuses.js';
 import { useDmxButtonsContext } from './contexts/DmxButtonsContext.js';
 import DebugConsole from './components/DebugConsole/DebugConsole.js';
 import { useRealTimeContext } from './contexts/RealTimeContext.js';
+import NoteEditor from './components/MidiPlayer/NoteEditor.js';
+import { useDmxMidiContext } from './contexts/DmxMidiContext.js';
 
 
 
 function App() {
   const { program } = useDmxButtonsContext()
+  const { selectedMidiPatterns } = useDmxMidiContext()
   const { debug } = useRealTimeContext()
   
   return (
-      <div className="panels">
+      <div id="app">
         { debug && <DebugConsole/>}
-        <div className="central-panel">
-          
-          
-          <div className='left-and-right'>
-            <ProgramSelect/>
-            <Statuses/>
-          </div>
+        
+        <div className='section commands-bar'>
+          <ProgramSelect/>
+          <Statuses/>
+        </div>
+
+        <div className="section">
           { program ? <MidiPlayer program={program}/> : <></>}
 
-          <DmxButtonsCollection/>
-          
+          {selectedMidiPatterns.length == 1 && <NoteEditor pattern={ selectedMidiPatterns[0]}/>}
+        </div>
+
+        <div className="section">
           <DmxButtonDetails/>
+          
+          <DmxButtonsCollection/>
 
           <DmxScene/>
         </div>

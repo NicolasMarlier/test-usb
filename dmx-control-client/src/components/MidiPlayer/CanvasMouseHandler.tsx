@@ -5,12 +5,12 @@ interface Props {
     onClickTimeline: (tick: number) => void
     onClickMain: (tick: number) => void
     onClickAudioWave: (tick: number) => void
-    onClick: () => void
+    onClick?: () => void
     ticksScroll: number
     pixelsPerBeat: number
     onSelect?: (selection: Rectangle) => void
     onSelectEnd?: () => void
-    onOver: (v: {tick: number, midiKeyIndex: number}) => void
+    onOver?: (v: {tick: number, midiKeyIndex: number}) => void
     onMoveTicksScroll?: (tick: number) => void
     onZoom?: (zoomRatio: number) => void
     registerAgain: number
@@ -52,7 +52,7 @@ const CanvasMouseHandler = (props: Props) => {
     const onMouseUp = (event: MouseEvent) => {
         if(onSelectEnd) onSelectEnd()
         if(currentSelection.current && !didMouseMovedWhileDown()) {
-            onClick()
+            if(onClick) onClick()
         }
         currentSelection.current = undefined
     }

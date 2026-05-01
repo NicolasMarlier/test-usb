@@ -4,13 +4,16 @@ import './index.css'
 import App from './App.tsx'
 import { DmxButtonsContextProvider } from './contexts/DmxButtonsContext.tsx'
 import { RealTimeContextProvider } from './contexts/RealTimeContext.tsx'
+import { DmxMidiContextProvider } from './contexts/DmxMidiContext.tsx'
 
 createRoot(document.getElementById('root')!).render(
   //<StrictMode>
   <DmxButtonsContextProvider>
-    <RealTimeContextProvider>
-      <App />
-    </RealTimeContextProvider>
+    <DmxMidiContextProvider>
+      <RealTimeContextProvider>
+        <App />  
+      </RealTimeContextProvider>
+    </DmxMidiContextProvider>
   </DmxButtonsContextProvider>
   //</StrictMode>,
 )

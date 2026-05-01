@@ -1,23 +1,23 @@
 import './MidiPlayer.scss'
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { updateProgramDmxMidi, getProgramDmxMidi, uploadProgramAudio, getProgramAudio } from '../../ApiClient';
+import { uploadProgramAudio, getProgramAudio } from '../../ApiClient';
 import { useRealTimeContext } from '../../contexts/RealTimeContext';
 import { useDmxButtonsContext } from '../../contexts/DmxButtonsContext';
 import Toggle from '../DesignSystem/Toggle/Toggle';
 import SmallButton from '../DesignSystem/SmallButton/SmallButton';
 import { RecordIcon } from './Icons.js'
-import { computedSelectedNotes } from './utils.js';
 import { computeWave } from './utils_audio.js';
 import AudioPlayer from './AudioPlayer.js';
 import { redrawFullCanvas } from './CanvasDrawer.js';
 import Draggable from '../DesignSystem/Draggable/Draggable.js';
-import { addNoteAtTick, insertNotesAtTick, insertPatternsAtTick, magnettedTick, midiNoteEqual } from './utils_midi_notes.js';
+import { insertPatternsAtTick, magnettedTick } from './utils_midi_notes.js';
+import { PPQ } from './utils.js';
 import CanvasMouseHandler from './CanvasMouseHandler.js';
+import { useDmxMidiContext } from '../../contexts/DmxMidiContext.js';
+import { splitPatternsAtTick } from './utils_midi_patterns.js';
 
 const BEATS_OFFSET = 0.1
-
-const PPQ = 480
 
 interface Props {
     program: Program
@@ -28,10 +28,14 @@ const BASE_PIXELS_PER_BEAT = 40
 const MidiPlayer = (props: Props) => {
     const { program } = props
     const { dmxButtons } = useDmxButtonsContext()
+    const { midiPatterns, updateProgramDmxMidiAndSync, allMidiKeys, activeEditor, setActiveEditor, selectedMidiPatterns, setSelectedMidiPatterns } = useDmxMidiContext()
+
+    const midiPatternsRef = useRef(midiPatterns)
+    midiPatternsRef.current = midiPatterns
+    const selectedMidiPatternsRef = useRef(selectedMidiPatterns)
+    selectedMidiPatternsRef.current = selectedMidiPatterns
     
     const { midiCurrentTick: serverMidiCurrentTick, sendCurrentTickToServer, lastReceivedMidiKey } = useRealTimeContext()
-
-    const [dmxMidi, setDmxMidi] = useState<DmxMidi | undefined>(undefined)
 
     const [isRecording, setIsRecording] = useState(false)
     const [audioUrl, setAudioUrl] = useState<string | undefined>(undefined)
@@ -50,8 +54,6 @@ const MidiPlayer = (props: Props) => {
 
     const aimedMidiNote = useRef<MidiNote>(null)
 
-    const allMidiKeys = (dmxButtons.flatMap(({triggering_midi_key}) => triggering_midi_key) || []).toSorted() as MidiKey[]
-
     const [canvasRedrawTrigger, setCanvasRedrawTrigger] = useState(0)
 
     const [currentAudioTime, setCurrentAudioTime] = useState(0)
@@ -61,154 +63,51 @@ const MidiPlayer = (props: Props) => {
         if(!canvasRef.current) return
 
         mouseSelection.current = selection
-        //TODO: Reimplement notes selection in pattern mode
-        /*selectedNotes.current = computedSelectedNotes(
-            selection,
-            dmxMidi?.midi_notes || [],
-            canvasRef.current.clientHeight,
-            allMidiKeys,
-            ticksScroll,
-            pixelsPerBeat
-        )*/
-        //redrawMidiCanvas()
     }
 
     const onMouseSelectEnd = () => {
         if(!canvasRef.current) return
         
         mouseSelection.current = null
-        //redrawMidiCanvas()
-    }
-
-    
-    const onMouseOver = (args: {tick: number, midiKeyIndex: number}) => {
-        return
-        const {tick, midiKeyIndex} = args
-        if(tick >= 0 && midiKeyIndex >= 0 && midiKeyIndex < allMidiKeys.length) {
-            const newAimedMidiNote = {
-                ticks: tick,
-                midi: allMidiKeys[midiKeyIndex],
-                durationTicks: PPQ / 4
-            }
-            if(!aimedMidiNote.current || !midiNoteEqual(newAimedMidiNote, aimedMidiNote.current)) {
-                aimedMidiNote.current = newAimedMidiNote
-                redrawMidiCanvas()
-            }
-        }
-        else {
-            if(aimedMidiNote.current) {
-                aimedMidiNote.current = null
-                redrawMidiCanvas()
-            }
-        }   
+        redrawMidiCanvas()
     }
 
     const splitAtCurrentTick = () => {
-        let newPatterns = [] as MidiPattern[]
-        dmxMidi?.midi_patterns.forEach((pattern) => {
-            console.log(
-                pattern.ticks,
-                midiCurrentTick,
-                pattern.ticks + pattern.durationTicks,
-                pattern.ticks < midiCurrentTick,
-                (pattern.ticks + pattern.durationTicks) > midiCurrentTick
-            )
-            if(
-                pattern.ticks < midiCurrentTick
-                && (pattern.ticks + pattern.durationTicks) > midiCurrentTick) {
-                newPatterns = [...newPatterns, ...[
-                    {
-                        ticks: pattern.ticks,
-                        durationTicks: midiCurrentTick - pattern.ticks,
-                        midi_notes: pattern.midi_notes.filter((n) => n.ticks < midiCurrentTick)
-                    },
-                    {
-                        ticks: midiCurrentTick,
-                        durationTicks: pattern.ticks + pattern.durationTicks - midiCurrentTick,
-                        midi_notes: pattern.midi_notes.filter((n) => n.ticks >= midiCurrentTick)
-                    }
-                ]]
-            }
-            else {
-                newPatterns = [...newPatterns, ...[pattern]]
-            }
-        })
-        updateProgramDmxMidiAndSync(newPatterns)
+        updateProgramDmxMidiAndSync(splitPatternsAtTick(midiPatterns, midiCurrentTick))
+        setSelectedMidiPatterns([])
     }
 
-    const onMouseClick = () => {
-        return
-        if(!aimedMidiNote.current) return
-        if(selectedPatterns.current.length > 0) {
-            selectedPatterns.current = []
-            triggerCanvasRedraw()
-            return
-        }
-        else {
-            // TODO: implement correct selecttion
-            selectedPatterns.current = dmxMidi?.midi_patterns || []
-            triggerCanvasRedraw()
-        }
-
-        //TODO: Reimplement notes selection in pattern mode
-        /*updateProgramDmxMidiAndSync(
-            insertNotesAtTick({
-                tick: aimedMidiNote.current.ticks,
-                midiNotes: dmxMidi?.midi_notes || [],
-                midiNotesToInsert: [aimedMidiNote.current],
-                ppq: PPQ,
-                options: {
-                    remove_if_exist: true
-                }
-            })
-        )
-        */
-    }
-    const selectedNotes = useRef<MidiNote[]>([])
-    const selectedPatterns = useRef<MidiPattern[]>([])
+    const activeEditorRef = useRef<'TrackEditor' | 'PatternEditor'>(null)
+    activeEditorRef.current = activeEditor
 
     const clipboard = useRef<MidiPattern[]>([])
     const [isPlaying, setIsPlaying] = useState(false)
 
 
     const deleteSelectedMidiPatterns = () => {
-        updateProgramDmxMidiAndSync((dmxMidi?.midi_patterns || []).filter(midiPattern => (
-            !selectedPatterns.current.find(n => n.ticks == midiPattern.ticks)
+        updateProgramDmxMidiAndSync(midiPatterns.filter(midiPattern => (
+            selectedMidiPatternsRef.current.find(p => p.ticks == midiPattern.ticks)
         )))
-        // updateProgramDmxMidiAndSync((dmxMidi?.midi_notes || []).filter(midiNote => (
-        //     !selectedNotes.current.find(n => n.midi == midiNote.midi && n.ticks == midiNote.ticks)
-        // )))
     }
 
     const copySelectedMidiPatterns = () => {
-        //clipboard.current = selectedNotes.current
-        clipboard.current = selectedPatterns.current
+        clipboard.current = selectedMidiPatternsRef.current
     }
 
     const pasteSelectedMidiPatterns = () => {
         updateProgramDmxMidiAndSync(
             insertPatternsAtTick({
-                midiPatterns: dmxMidi?.midi_patterns || [],
+                midiPatterns,
                 midiPatternsToInsert: clipboard.current,
                 tick: midiCurrentTick,
                 ppq: PPQ
             })
         )
-
-        //TODO: Reimplement notes selection in pattern mode
-        /*
-        updateProgramDmxMidiAndSync(
-            insertNotesAtTick({
-                midiNotes: dmxMidi?.midi_notes || [],
-                midiNotesToInsert: clipboard.current,
-                tick: midiCurrentTick,
-                ppq: PPQ
-            })
-        )
-        */
     }
 
     const onKeyDown = (e: KeyboardEvent) => {
+        if(activeEditorRef.current !== 'TrackEditor') return
+
         let shouldPreventDefault = true
         if(e.key == 'Backspace') deleteSelectedMidiPatterns()
         else if(e.key == 'c' && e.metaKey) copySelectedMidiPatterns()
@@ -233,14 +132,10 @@ const MidiPlayer = (props: Props) => {
         if(shouldPreventDefault) e.preventDefault()
     }
 
-    const fetchDmxMidi = () => getProgramDmxMidi(program.id).then(setDmxMidi)
-
     const fetchAudio = () => getProgramAudio(program.id).then((audioUrl) => setAudioUrl(audioUrl || undefined))
 
-    const updateProgramDmxMidiAndSync = (midiPatterns: MidiPattern[]) => updateProgramDmxMidi(program.id, {midi_patterns: midiPatterns}).then(fetchDmxMidi)
-
     const selectAll = () => {
-        selectedPatterns.current = dmxMidi?.midi_patterns || []
+        setSelectedMidiPatterns(midiPatterns)
         triggerCanvasRedraw()
     }
 
@@ -251,8 +146,8 @@ const MidiPlayer = (props: Props) => {
 
         redrawFullCanvas({
             canvas: canvasRef.current,
-            midiPatterns: dmxMidi?.midi_patterns || [],
-            selectedMidiPatterns: selectedPatterns.current || [],
+            midiPatterns: midiPatternsRef.current,
+            selectedMidiPatterns: selectedMidiPatternsRef.current,
             ppq: PPQ,
             currentMidiTick: midiCurrentTick,
             ticksScroll,
@@ -298,13 +193,12 @@ const MidiPlayer = (props: Props) => {
     useEffect(() => {
         setAudioUrl(undefined)
         setIsRecording(false)
-        fetchDmxMidi()
         fetchAudio()
     }, [program])
 
     useEffect(() => {
         triggerCanvasRedraw()
-    }, [midiCurrentTick, ticksScroll, audioWaveData, dmxMidi, isRecording, pixelsPerBeat])
+    }, [midiCurrentTick, ticksScroll, audioWaveData, midiPatterns, isRecording, pixelsPerBeat])
 
     
 
@@ -313,7 +207,7 @@ const MidiPlayer = (props: Props) => {
         return () => {
             document.removeEventListener("keydown", onKeyDown)
         }
-    }, [dmxMidi, ticksScroll, editMode, aimedMidiNote, midiCurrentTick])
+    }, [midiPatterns, ticksScroll, editMode, aimedMidiNote, midiCurrentTick])
 
     useEffect(() => {
         if(!audioUrl) {
@@ -339,29 +233,32 @@ const MidiPlayer = (props: Props) => {
     }, [program.bpm])
 
     const onClickTimeline = (tick: number) => {
+        setActiveEditor('TrackEditor')
         setMidiCurrentTick(tick)
         setCurrentAudioTime(tick * 60 / (PPQ * program.bpm))
         triggerCanvasRedraw()
     }
 
     const onClickMain = (tick: number) => {
-        const clickedPattern = (dmxMidi?.midi_patterns || []).find(p => p.ticks <= tick && p.ticks + p.durationTicks > tick)
+        setActiveEditor('TrackEditor')
+        const clickedPattern = midiPatterns.find(p => p.ticks <= tick && p.ticks + p.durationTicks > tick)
         if(clickedPattern) {
-            selectedPatterns.current = [clickedPattern]
+            setSelectedMidiPatterns([clickedPattern])
         }
         else {
-            selectedPatterns.current = []
+            setSelectedMidiPatterns([])
         }
         triggerCanvasRedraw()
     }
-    const onClickAudioWave = (tick: number) => {
-        selectedPatterns.current = []
+    const onClickAudioWave = () => {
+        setActiveEditor('TrackEditor')
+        setSelectedMidiPatterns([])
         triggerCanvasRedraw()
     }
 
     useEffect(() => {
         if(!editMode || isPlaying) setMidiCurrentTick(serverMidiCurrentTick)
-    }, [editMode, serverMidiCurrentTick, dmxButtons, dmxMidi?.midi_patterns])    
+    }, [editMode, serverMidiCurrentTick, dmxButtons, midiPatterns])
 
     useEffect(() => {
         if(!editMode || isPlaying) setTicksScroll(midiCurrentTick - BEATS_OFFSET * PPQ)
@@ -383,11 +280,10 @@ const MidiPlayer = (props: Props) => {
     }, [canvasRedrawTrigger])
     
     return (<>
-
         <div className="midi-container">
             <Draggable
                 onDropFile={onDropAudioFile}
-                className='midi-canvas-container'>
+                className={`midi-canvas-container${activeEditor === 'TrackEditor' ? ' midi-canvas-container--focused' : ''}`}>
                 <canvas
                     ref={canvasRef}
                     id="midi-canvas"
@@ -402,8 +298,6 @@ const MidiPlayer = (props: Props) => {
                     pixelsPerBeat={pixelsPerBeat}
                     onSelect={onMouseSelect}
                     onSelectEnd={onMouseSelectEnd}
-                    onOver={onMouseOver}
-                    onClick={onMouseClick}
                     onMoveTicksScroll={onMoveTicksScroll}
                     onZoom={onZoom}
                     registerAgain={canvasRedrawTrigger}

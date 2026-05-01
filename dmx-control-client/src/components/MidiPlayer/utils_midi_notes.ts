@@ -1,4 +1,23 @@
 export const midiNoteEqual = (a: MidiNote, b: MidiNote) => a.midi == b.midi && a.ticks == b.ticks
+
+const NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B']
+export const isBlackKey = (midi: number) => [1, 3, 6, 8, 10].includes(midi % 12)
+export const noteName = (midi: number) => NOTE_NAMES[midi % 12] + (Math.floor(midi / 12) - 1)
+
+export const buildRowKeys = (rawKeys: MidiKey[], minRows = 6): MidiKey[] => {
+    const valid = [...new Set(rawKeys.filter((k): k is number => typeof k === 'number' && !isNaN(k)))]
+    if (valid.length === 0) return [48, 45, 43, 39, 38, 36]
+    const sorted = valid.sort((a, b) => a - b)
+    const result = [...sorted]
+    while (result.length < minRows) {
+        const lo = result[0]
+        const hi = result[result.length - 1]
+        if (lo > 0) result.unshift(lo - 1)
+        if (result.length >= minRows) break
+        if (hi < 127) result.push(hi + 1)
+    }
+    return result.sort((a, b) => b - a)
+}
 const includes = (a: MidiNote[], midiNote: MidiNote) => !!a.find(mn => midiNoteEqual(mn, midiNote))
 const subtract = (a: MidiNote[], b: MidiNote[]) => a.filter((mn) => !includes(b, mn))
 const union = (a: MidiNote[], b: MidiNote[]) => [...subtract(a, b), ...b]

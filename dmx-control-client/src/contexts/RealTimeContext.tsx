@@ -28,7 +28,7 @@ export const useRealTimeContext = () => {
 
   if (!realTimeContext) {
     throw new Error(
-      "useCurrentUser has to be used within <RealTimeContext.Provider>"
+      "useRealTimeContext has to be used within <RealTimeContext.Provider>"
     );
   }
   return realTimeContext

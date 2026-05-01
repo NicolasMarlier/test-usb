@@ -1,4 +1,4 @@
-import { midiKeyToPixelsHeight, midiKeyToPixelsOffset, midiPatternToRectangle, ticksDurationToPixels, ticksOffsetToPixels } from "./utils";
+import { midiKeyToPixelsHeight, midiKeyToPixelsOffset, midiPatternToRectangle, setupCanvasDPR, ticksDurationToPixels, ticksOffsetToPixels } from "./utils";
 
 interface Props {
     canvas: HTMLCanvasElement
@@ -26,14 +26,6 @@ interface DrawerFunctionProps {
     allMidiKeys: MidiKey[]
 }
 
-const adjustDevicePixelRatio = (canvas: HTMLCanvasElement, ctx: CanvasRenderingContext2D) => {
-    const width = canvas.clientWidth;
-    const height = canvas.clientHeight - 2;
-    const dpr = window.devicePixelRatio || 1;
-    canvas.width = Math.floor(width * dpr);
-    canvas.height = Math.floor(height * dpr);
-    ctx.scale(dpr, dpr);
-}
 
 const drawAudioWave = (props: DrawerFunctionProps, audioWaveData: Uint8Array) => {
     const { ctx, ticksScroll, pixelsPerBeat, height } = props
@@ -221,10 +213,7 @@ export const redrawFullCanvas = (props: Props) => {
         const ctx = canvas.getContext("2d")
         if(!ctx) return
 
-        adjustDevicePixelRatio(canvas, ctx)
-
-        const width = canvas.clientWidth;
-        const height = canvas.clientHeight - 2;
+        const { width, height } = setupCanvasDPR(canvas, ctx, -2)
 
         const drawerFunctionProps: DrawerFunctionProps = {
             ...props,

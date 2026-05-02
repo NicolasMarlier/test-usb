@@ -6,6 +6,7 @@ export const SECONDARY_GRID_COLOR = "#282828"
 
 export const SELECTED_COLOR = "#e8531a"
 export const ITEM_COLOR = "#3ad400"
+export const RECORDING_COLOR = "#9221e866"
 
 export interface DrawerFunctionProps {
     canvas: HTMLCanvasElement,

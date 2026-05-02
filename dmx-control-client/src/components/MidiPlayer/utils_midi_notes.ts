@@ -1,5 +1,6 @@
 export const midiNoteEqual = (a: MidiNote, b: MidiNote) => a.midi == b.midi && a.ticks == b.ticks
 
+export const PPQ = 480
 const NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B']
 export const noteName = (midi: number) => NOTE_NAMES[midi % 12] + (Math.floor(midi / 12) - 1)
 
@@ -23,7 +24,7 @@ const union = (a: MidiNote[], b: MidiNote[]) => [...subtract(a, b), ...b]
 const outer_join = (a: MidiNote[], b: MidiNote[]) => union(subtract(a,b), subtract(b, a))
 
 
-export const magnettedTick = (tick: number, ppq: number, beatMagnet: number=0.25) => ppq * Math.floor((tick / ppq) / beatMagnet) * beatMagnet
+export const magnettedTick = (tick: number, beatMagnet: number=0.25) => PPQ * Math.floor((tick / PPQ) / beatMagnet) * beatMagnet
 
 interface InsertNotesAtTickProps {
     tick: number
@@ -103,10 +104,12 @@ export const insertPatternsAtTick = (props: InsertPatternsAtTickProps) => {
 }
 
 const MAX_TICK = 5 * 60 * 120 * 480
-export const nextFreeTick = (midiPatterns: MidiPattern[], tick: number) => midiPatterns.reduce(
-    (freeTick, pattern) => pattern.ticks > tick && pattern.ticks < freeTick ? pattern.ticks : freeTick,
-    MAX_TICK
-)
+export const nextFreeTick = (midiPatterns: MidiPattern[], tick: number) => midiPatterns
+    .filter(p => p.ticks + p.durationTicks > tick)
+    .reduce(
+        (freeTick, pattern) => Math.max(tick, Math.min(pattern.ticks, freeTick)),
+        MAX_TICK
+    )
 
 export const toggleLoopForPatterns = (midiPatterns: MidiPattern[], selectedMidiPatterns: MidiPattern[]) => {
     const shouldToggleOn = !selectedMidiPatterns.some(p => p.loop_until_tick)

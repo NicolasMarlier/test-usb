@@ -7,13 +7,13 @@ import { useDmxButtonsContext } from '../../contexts/DmxButtonsContext.js';
 import { computeWave } from './utils_audio.js';
 import { redrawFullCanvas } from './TrackEditorCanvasDrawer.js';
 import Draggable from '../DesignSystem/Draggable/Draggable.js';
-import { insertPatternsAtTick, magnettedTick, toggleLoopForPatterns } from './utils_midi_notes.js';
+import { addNoteAtTick, insertPatternsAtTick, magnettedTick, nextFreeTick, toggleLoopForPatterns } from './utils_midi_notes.js';
 import { PPQ } from './utils.js';
 import CanvasMouseHandler from './CanvasMouseHandler.js';
 import { useDmxMidiContext } from '../../contexts/DmxMidiContext.js';
 import { isSelected, splitPatternsAtTick } from './utils_midi_patterns.js';
 
-const BEATS_OFFSET = 0.3
+const BEATS_OFFSET = 2
 
 interface Props {
     program: Program
@@ -57,6 +57,8 @@ const MidiPlayer = (props: Props) => {
     const aimedMidiNote = useRef<MidiNote>(null)
 
     const [canvasRedrawTrigger, setCanvasRedrawTrigger] = useState(0)
+
+    const recordingPatternRef = useRef<MidiPattern>(null)
 
 
     const onMouseSelect = (selection: Rectangle) => {
@@ -120,12 +122,12 @@ const MidiPlayer = (props: Props) => {
         else if(e.key == 't') splitAtCurrentTick()
         else if(e.key == 'l') toggleLoop()
         else if(e.key == 'ArrowLeft') {
-            const targetTick = (magnettedTick(midiCurrentTick, PPQ, 1) - PPQ)
+            const targetTick = (magnettedTick(midiCurrentTick, 1) - PPQ)
             setMidiCurrentTick(targetTick)
             setTicksScroll(targetTick - PPQ)
         }
         else if(e.key == 'ArrowRight') {
-            const targetTick = (magnettedTick(midiCurrentTick, PPQ, 1) + PPQ)
+            const targetTick = (magnettedTick(midiCurrentTick, 1) + PPQ)
             setMidiCurrentTick(targetTick)
             setTicksScroll(targetTick - PPQ)
         }
@@ -148,6 +150,7 @@ const MidiPlayer = (props: Props) => {
             canvas: canvasRef.current,
             midiPatterns: midiPatternsRef.current,
             selectedMidiPatterns: selectedMidiPatternsRef.current,
+            recordingMidiPattern: recordingPatternRef.current,
             ppq: PPQ,
             currentMidiTick: midiCurrentTick,
             ticksScroll,
@@ -174,20 +177,54 @@ const MidiPlayer = (props: Props) => {
         //TODO: real-time update fetchAudio
     }
 
+    const persistRecordingPattern = () => {
+        if(!recordingPatternRef.current) return
+        if(recordingPatternRef.current.midi_notes.length == 0) return
+
+        updateProgramDmxMidiAndSync([...midiPatterns, ...[recordingPatternRef.current]])
+        recordingPatternRef.current = null
+    }
 
     useEffect(() => {
-        if(!!lastReceivedMidiKey && isRecording) {
-            //TODO: Reimplement isRecording
-            /*
-            updateProgramDmxMidiAndSync(
-                addNoteAtTick({
-                    tick: midiCurrentTick,
-                    midiKey: lastReceivedMidiKey.midi,
-                    midiNotes: dmxMidi?.midi_notes || [],
-                    ppq: PPQ
-                })
-            )
-            */
+        if(isRecording) {
+            if(!recordingPatternRef.current) {
+                const duration = nextFreeTick(midiPatterns, midiCurrentTick) - midiCurrentTick
+                if(duration > 0) {
+                    recordingPatternRef.current = {
+                        ticks: magnettedTick(midiCurrentTick),
+                        durationTicks: duration,
+                        midi_notes: []
+                    }
+                    triggerCanvasRedraw()
+                }
+            }
+            else {
+                //TODO: Handle case when we are after durationTicks, send to server and 
+            }
+        }
+        else {
+            if(recordingPatternRef.current) {
+                persistRecordingPattern()
+            }
+        }
+    }, [isRecording, midiCurrentTick])
+
+
+
+    useEffect(() => {
+        if(!!lastReceivedMidiKey && isRecording && recordingPatternRef.current) {
+            recordingPatternRef.current = {
+                ...recordingPatternRef.current,
+                ...{
+                    midi_notes: addNoteAtTick({
+                        tick: magnettedTick(midiCurrentTick),
+                        midiKey: lastReceivedMidiKey.midi,
+                        midiNotes: recordingPatternRef.current.midi_notes || [],
+                        ppq: PPQ
+                    })
+                }
+            }
+            triggerCanvasRedraw()
         }
     }, [lastReceivedMidiKey, isRecording])
 

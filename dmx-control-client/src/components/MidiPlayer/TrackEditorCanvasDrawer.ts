@@ -1,9 +1,10 @@
-import { drawBeatsGrid, drawTimeline, drawCurrentTick, type DrawerFunctionProps, drawCurrentSelection, SELECTED_COLOR, ITEM_COLOR, drawRoundedRect } from "./GenericCanvasDrawer";
+import { drawBeatsGrid, drawTimeline, drawCurrentTick, type DrawerFunctionProps, drawCurrentSelection, SELECTED_COLOR, ITEM_COLOR, drawRoundedRect, RECORDING_COLOR } from "./GenericCanvasDrawer";
 import { midiKeyToPixelsHeight, midiKeyToPixelsOffset, midiPatternToRectangle, setupCanvasDPR, ticksDurationToPixels, ticksOffsetToPixels } from "./utils";
 
 interface Props {
     canvas: HTMLCanvasElement
     midiPatterns: MidiPattern[]
+    recordingMidiPattern: MidiPattern | null
     ticksScroll: number
     pixelsPerBeat: number
     audioWaveData: Uint8Array
@@ -78,18 +79,30 @@ const drawMidiPatterns = (props: DrawerFunctionProps, params: {midiPatterns: Mid
             
             drawMidiPattern(props, {midiPattern, currentMidiTick})
             
+            
             if(midiPattern.loop_until_tick) {
-                for(let i = midiPattern.ticks + midiPattern.durationTicks; i < midiPattern.loop_until_tick; i += midiPattern.durationTicks) {
+                const loopUntilTick = midiPattern.loop_until_tick
+                for(let i = midiPattern.ticks + midiPattern.durationTicks; i < loopUntilTick; i += midiPattern.durationTicks) {
                     const loopedPattern = {
                         ticks: i,
-                        durationTicks: Math.min(midiPattern.durationTicks, midiPattern.loop_until_tick - i),
-                        midi_notes: midiPattern.midi_notes.map(n => ({...n, ...{ticks: n.ticks + i - midiPattern.ticks}}))
+                        durationTicks: Math.min(midiPattern.durationTicks, loopUntilTick - i),
+                        midi_notes: midiPattern
+                            .midi_notes
+                            .map(n => ({...n, ...{ticks: n.ticks + i - midiPattern.ticks}}))
+                            .filter(n => n.ticks < loopUntilTick)
                     }
                     ctx.fillStyle = isSelected ? SELECTED_COLOR + "33" : ITEM_COLOR + "33"
                     drawMidiPattern(props, {midiPattern: loopedPattern, currentMidiTick})
                 }
             }
         })
+}
+
+const drawRecordingMidiPattern = (props: DrawerFunctionProps, args: {recordingMidiPattern: MidiPattern, currentMidiTick: number}) => {
+    const { ctx } = props
+    const { recordingMidiPattern: midiPattern, currentMidiTick } = args
+    ctx.fillStyle = RECORDING_COLOR
+    drawMidiPattern(props, {midiPattern, currentMidiTick})
 }
 
 
@@ -110,6 +123,7 @@ export const redrawFullCanvas = (props: Props) => {
         const {
             canvas,
             midiPatterns,
+            recordingMidiPattern,
             audioWaveData,
             aimedMidiNote,
             selectedMidiPatterns,
@@ -145,6 +159,7 @@ export const redrawFullCanvas = (props: Props) => {
         // Middle part
         
         drawMidiPatterns(drawerFunctionProps, {midiPatterns, selectedMidiPatterns, currentMidiTick})
+        if(recordingMidiPattern) drawRecordingMidiPattern(drawerFunctionProps, {recordingMidiPattern, currentMidiTick})
         if(aimedMidiNote) {
             drawAimedMidiNote(drawerFunctionProps, aimedMidiNote)
         }

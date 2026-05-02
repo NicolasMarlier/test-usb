@@ -137,7 +137,7 @@ const MidiPlayer = (props: Props) => {
         else if(e.key == 'j') joinSelection()
         else if(e.key == 'l') toggleLoop()
         else if(e.key == 'ArrowLeft') {
-            const targetTick = (magnettedTick(midiCurrentTickRef.current, 1) - PPQ)
+            const targetTick = Math.max(0, magnettedTick(midiCurrentTickRef.current, 1) - PPQ)
             setMidiCurrentTick(targetTick)
             setTicksScroll(targetTick - PPQ)
         }

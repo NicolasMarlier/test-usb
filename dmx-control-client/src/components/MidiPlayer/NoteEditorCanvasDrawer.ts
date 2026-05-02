@@ -142,7 +142,7 @@ export const redrawNoteEditor = (props: Props) => {
     drawBeatsGrid(drawerFunctionProps)
 
     drawTimeline(drawerFunctionProps)
-    drawPianoKeyboard(drawerFunctionProps)
+    
     drawMidiNotes(drawerFunctionProps, {
         midiNotes: pattern.midi_notes,
         selectedMidiNotes: selectedNotes,
@@ -150,7 +150,8 @@ export const redrawNoteEditor = (props: Props) => {
         dragDeltaTicks
     })  
     if (ghostNote) drawGhostNote(drawerFunctionProps, ghostNote)
-    
+
     drawCurrentTick(drawerFunctionProps, currentMidiTick)
     if (selectionRect) { drawCurrentSelection(drawerFunctionProps, selectionRect) }
+    drawPianoKeyboard(drawerFunctionProps)
 }

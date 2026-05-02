@@ -11,7 +11,7 @@ import { useRealTimeContext } from './contexts/RealTimeContext.js';
 import NoteEditor from './components/MidiPlayer/NoteEditor.js';
 import { useDmxMidiContext } from './contexts/DmxMidiContext.js';
 import SmallButton from './components/DesignSystem/SmallButton/SmallButton.js';
-import { RecordIcon } from './components/MidiPlayer/Icons.js';
+import { RecordIcon } from './components/DesignSystem/Icons.js';
 import AudioPlayer from './components/MidiPlayer/AudioPlayer.js';
 
 

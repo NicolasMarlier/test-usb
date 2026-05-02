@@ -71,6 +71,9 @@
 [X] Ability to repeat a pattern
 [X] Ability to join
 
+Bugs
+[ ] Delete / keyboard input on input field
+[X] Small display as Mainstage companion
 
 
 

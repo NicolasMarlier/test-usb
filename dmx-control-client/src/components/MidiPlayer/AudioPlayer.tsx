@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react"
 import SmallButton from "../DesignSystem/SmallButton/SmallButton"
-import { PauseIcon, PlayIcon, StopIcon } from "./Icons"
+import { PauseIcon, PlayIcon, StopIcon } from "../DesignSystem/Icons"
 import { useDmxButtonsContext } from "../../contexts/DmxButtonsContext"
 import { getProgramAudio } from "../../ApiClient"
 import { tickToTime, timeToTick } from "./utils"

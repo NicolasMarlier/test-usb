@@ -44,6 +44,7 @@ h1 {
 
     &.dmx {
       padding: 20px;
+      justify-content: space-between;
     }
 
 
@@ -51,6 +52,7 @@ h1 {
       grid-column-start: span 2;
       padding: 10px;
       flex-direction: row;
+      align-items: center;
     }   
   }
 }
@@ -70,16 +72,16 @@ h1 {
 }
 
 @media (max-width: 800px) {
-  .panels {
-    .central-panel {
-      height: 100%;
-      box-shadow: none;
+  #app {
+    grid-template-columns: 100%;
+    grid-template-rows: 50px 100px 1fr;
+
+    .section {
+      &.commands-bar {
+        grid-column-start: span 1;
+      }
     }
   }
-    
-    .left-and-right { 
-      flex-direction: column;
-    }
 }
 
 .btn {

@@ -7,11 +7,11 @@ import { useDmxButtonsContext } from '../../contexts/DmxButtonsContext.js';
 import { computeWave } from './utils_audio.js';
 import { redrawFullCanvas } from './TrackEditorCanvasDrawer.js';
 import Draggable from '../DesignSystem/Draggable/Draggable.js';
-import { insertPatternsAtTick, magnettedTick } from './utils_midi_notes.js';
+import { insertPatternsAtTick, magnettedTick, toggleLoopForPatterns } from './utils_midi_notes.js';
 import { PPQ } from './utils.js';
 import CanvasMouseHandler from './CanvasMouseHandler.js';
 import { useDmxMidiContext } from '../../contexts/DmxMidiContext.js';
-import { splitPatternsAtTick } from './utils_midi_patterns.js';
+import { isSelected, splitPatternsAtTick } from './utils_midi_patterns.js';
 
 const BEATS_OFFSET = 0.3
 
@@ -84,9 +84,9 @@ const MidiPlayer = (props: Props) => {
 
 
     const deleteSelectedMidiPatterns = () => {
-        updateProgramDmxMidiAndSync(midiPatterns.filter(midiPattern => (
-            selectedMidiPatternsRef.current.find(p => p.ticks == midiPattern.ticks)
-        )))
+        updateProgramDmxMidiAndSync(
+            midiPatterns.filter(midiPattern => !isSelected(midiPattern, selectedMidiPatterns))
+        )
     }
 
     const copySelectedMidiPatterns = () => {
@@ -104,6 +104,11 @@ const MidiPlayer = (props: Props) => {
         )
     }
 
+    const toggleLoop = () => {
+        if(!selectedMidiPatternsRef.current) return
+        updateProgramDmxMidiAndSync(toggleLoopForPatterns(midiPatterns, selectedMidiPatternsRef.current))
+    }
+
     const onKeyDown = (e: KeyboardEvent) => {
         if(activeEditorRef.current !== 'TrackEditor') return
 
@@ -113,6 +118,7 @@ const MidiPlayer = (props: Props) => {
         else if(e.key == 'v' && e.metaKey) pasteSelectedMidiPatterns()
         else if(e.key == 'a' && e.metaKey) selectAll()
         else if(e.key == 't') splitAtCurrentTick()
+        else if(e.key == 'l') toggleLoop()
         else if(e.key == 'ArrowLeft') {
             const targetTick = (magnettedTick(midiCurrentTick, PPQ, 1) - PPQ)
             setMidiCurrentTick(targetTick)

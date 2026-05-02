@@ -88,8 +88,8 @@ export const midiNoteToRectangle = (midiNote: MidiNote, height: number, midiKeys
 
 export const midiPatternToRectangle = (midiPattern: MidiPattern, height: number, ticksScroll: number, pixelsPerBeat: number) => ({
     x0: ticksOffsetToPixels(midiPattern.ticks, ticksScroll, pixelsPerBeat),
-    y0: height * 1 / 5,
-    x1: ticksOffsetToPixels(midiPattern.ticks + midiPattern.durationTicks, ticksScroll, pixelsPerBeat),
+    y0: height * 1 / 5 ,
+    x1: ticksOffsetToPixels(midiPattern.ticks + midiPattern.durationTicks, ticksScroll, pixelsPerBeat) - 1,
     y1: height * 3 / 5
 })
 

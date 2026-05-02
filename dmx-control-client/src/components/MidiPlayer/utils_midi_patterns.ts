@@ -23,3 +23,9 @@ export const splitPatternsAtTick = (midiPatterns: MidiPattern[], tick: number) =
     })
     return newPatterns
 }
+
+export const midiPatternsInclude = (midiPatterns: MidiPattern[], midiPattern: MidiPattern) => midiPatterns.some(p => p.ticks == midiPattern.ticks)
+
+export const isSelected = (midiPattern: MidiPattern, selectedMidiPatterns: MidiPattern[]) => midiPatternsInclude(
+    selectedMidiPatterns, midiPattern
+)

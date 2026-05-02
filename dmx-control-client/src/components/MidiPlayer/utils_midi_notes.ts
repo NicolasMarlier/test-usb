@@ -1,7 +1,6 @@
 export const midiNoteEqual = (a: MidiNote, b: MidiNote) => a.midi == b.midi && a.ticks == b.ticks
 
 const NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B']
-export const isBlackKey = (midi: number) => [1, 3, 6, 8, 10].includes(midi % 12)
 export const noteName = (midi: number) => NOTE_NAMES[midi % 12] + (Math.floor(midi / 12) - 1)
 
 export const buildRowKeys = (rawKeys: MidiKey[], minRows = 6): MidiKey[] => {
@@ -101,4 +100,28 @@ export const insertPatternsAtTick = (props: InsertPatternsAtTickProps) => {
 
     
     return [...midiPatterns, ...newMidiPatterns].toSorted((a, b) => a.ticks - b.ticks)
+}
+
+const MAX_TICK = 5 * 60 * 120 * 480
+export const nextFreeTick = (midiPatterns: MidiPattern[], tick: number) => midiPatterns.reduce(
+    (freeTick, pattern) => pattern.ticks > tick && pattern.ticks < freeTick ? pattern.ticks : freeTick,
+    MAX_TICK
+)
+
+export const toggleLoopForPatterns = (midiPatterns: MidiPattern[], selectedMidiPatterns: MidiPattern[]) => {
+    const shouldToggleOn = !selectedMidiPatterns.some(p => p.loop_until_tick)
+    return midiPatterns.map(p => {
+        const isSelected = selectedMidiPatterns.some(({ticks}) => p.ticks == ticks)
+        if(isSelected) {
+            return {
+                ...p,
+                ...{
+                    loop_until_tick: shouldToggleOn ? nextFreeTick(midiPatterns, p.ticks + p.durationTicks) : undefined
+                }
+            }
+        }
+        else {
+            return p
+        }
+    })
 }

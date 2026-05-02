@@ -4,6 +4,9 @@ import { ticksOffsetToPixels } from "./utils"
 export const PRIMARY_GRID_COLOR = "#333"
 export const SECONDARY_GRID_COLOR = "#282828"
 
+export const SELECTED_COLOR = "#e8531a"
+export const ITEM_COLOR = "#3ad400"
+
 export interface DrawerFunctionProps {
     canvas: HTMLCanvasElement,
     width: number
@@ -15,6 +18,18 @@ export interface DrawerFunctionProps {
     allMidiKeys: MidiKey[]
     baseXOffset?: number
     baseYOffset?: number
+}
+
+export const drawRoundedRect = (ctx: CanvasRenderingContext2D, rect: Rectangle) => {
+    ctx.beginPath();
+    ctx.roundRect(
+        rect.x0,
+        rect.y0,
+        rect.x1 - rect.x0,
+        rect.y1 - rect.y0,
+        4
+    )
+    ctx.fill();
 }
 
 export const drawCurrentTick = (props: DrawerFunctionProps, currentMidiTick: number) => {

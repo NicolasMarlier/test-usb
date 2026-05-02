@@ -1,6 +1,6 @@
-import { drawBeatsGrid, drawCurrentSelection, drawCurrentTick, drawTimeline, PRIMARY_GRID_COLOR, type DrawerFunctionProps } from './GenericCanvasDrawer'
+import { drawBeatsGrid, drawCurrentSelection, drawCurrentTick, drawTimeline, ITEM_COLOR, PRIMARY_GRID_COLOR, SELECTED_COLOR, type DrawerFunctionProps } from './GenericCanvasDrawer'
 import { PPQ, setupCanvasDPR, ticksDurationToPixels, ticksOffsetToPixels } from './utils'
-import { isBlackKey, midiNotesIncludes, noteName } from './utils_midi_notes'
+import { midiNotesIncludes, noteName } from './utils_midi_notes'
 
 export const TIMELINE_HEIGHT = 24
 export const PIANO_KEY_WIDTH = 52
@@ -50,7 +50,7 @@ const drawMidiNotes = (props: DrawerFunctionProps, args: DrawMidiNotesArgs) => {
             durationTicks: note.durationTicks,
         } : note
 
-        drawMidiNote(props, {note: draggableNote, fillColor: isSelected ? '#e8531a' : '#3ad400'})
+        drawMidiNote(props, {note: draggableNote, fillColor: isSelected ? SELECTED_COLOR : ITEM_COLOR})
     })
 }
 

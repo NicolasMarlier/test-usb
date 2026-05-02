@@ -31,7 +31,22 @@ export class DmxMidiHandler {
   }
 
   setMidiPatterns(midiPatterns: MidiPattern[]) {
-    this.midiNotes = midiPatterns.map(p => p.midi_notes).flat()
+    this.midiNotes = midiPatterns.map(midiPattern => {
+      if(!midiPattern.loop_until_tick) return midiPattern.midi_notes
+
+      let loopedMidiNotes: MidiNote[] = []
+      for(let i = midiPattern.ticks; i < midiPattern.loop_until_tick; i += midiPattern.durationTicks) {
+          loopedMidiNotes = loopedMidiNotes.concat(midiPattern.midi_notes.map(n => ({
+            ...n,
+            ...{
+              ticks: n.ticks + i - midiPattern.ticks
+            }
+          })))
+      }
+      return loopedMidiNotes
+      
+    }).flat()
+    console.log(this.midiNotes)
   }
 
   play = () => {

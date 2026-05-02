@@ -1,4 +1,4 @@
-import { drawBeatsGrid, drawTimeline, drawCurrentTick, type DrawerFunctionProps, drawCurrentSelection } from "./GenericCanvasDrawer";
+import { drawBeatsGrid, drawTimeline, drawCurrentTick, type DrawerFunctionProps, drawCurrentSelection, SELECTED_COLOR, ITEM_COLOR, drawRoundedRect } from "./GenericCanvasDrawer";
 import { midiKeyToPixelsHeight, midiKeyToPixelsOffset, midiPatternToRectangle, setupCanvasDPR, ticksDurationToPixels, ticksOffsetToPixels } from "./utils";
 
 interface Props {
@@ -42,50 +42,57 @@ const drawAudioWave = (props: DrawerFunctionProps, audioWaveData: Uint8Array) =>
     })
 }
 
-const drawMidiPatterns = (props: DrawerFunctionProps, params: {midiPatterns: MidiPattern[], selectedMidiPatterns: MidiPattern[], currentMidiTick: number}) => {
+const drawMidiPattern = (props: DrawerFunctionProps, params: {midiPattern: MidiPattern, currentMidiTick: number}) => {
     const { ctx,  height, ticksScroll, pixelsPerBeat, allMidiKeys } = props
+    const { midiPattern, currentMidiTick } = params
+    const rect = midiPatternToRectangle(
+        midiPattern,
+        height,
+        ticksScroll,
+        pixelsPerBeat
+    )
+    drawRoundedRect(ctx, rect)
+    midiPattern.midi_notes.forEach((midiNote) => {
+        ctx.fillStyle = "#00000055";
+        
+        // Highlight when played
+        if(currentMidiTick >= midiNote.ticks && currentMidiTick < midiNote.ticks + midiNote.durationTicks) {
+            ctx.fillStyle = "#ffffffcc";
+        }
+
+        ctx.fillRect(
+            ticksOffsetToPixels(midiNote.ticks, ticksScroll, pixelsPerBeat) + 1,
+            midiKeyToPixelsOffset(midiNote.midi, height, allMidiKeys),
+            ticksDurationToPixels(midiNote.durationTicks, pixelsPerBeat) - 1,
+            midiKeyToPixelsHeight(height)
+        )
+    })
+}
+
+const drawMidiPatterns = (props: DrawerFunctionProps, params: {midiPatterns: MidiPattern[], selectedMidiPatterns: MidiPattern[], currentMidiTick: number}) => {
+    const { ctx } = props
     const { midiPatterns, selectedMidiPatterns, currentMidiTick } = params
     midiPatterns.forEach((midiPattern) => {
+            const isSelected = selectedMidiPatterns.find((n) => n.ticks == midiPattern.ticks)
+            ctx.fillStyle = isSelected ? SELECTED_COLOR : ITEM_COLOR
             
-
-            ctx.fillStyle = "#48ff00aa";
-            if(selectedMidiPatterns.find((n) => n.ticks == midiPattern.ticks)) {
-                ctx.fillStyle = "#ff0000";
-            }
+            drawMidiPattern(props, {midiPattern, currentMidiTick})
             
-            const rect = midiPatternToRectangle(
-                midiPattern,
-                height,
-                ticksScroll,
-                pixelsPerBeat
-            )
-            ctx.beginPath();
-            ctx.roundRect(
-                rect.x0,
-                rect.y0,
-                rect.x1 - rect.x0 - 1,
-                rect.y1 - rect.y0,
-                4
-            )
-            ctx.fill();
-            midiPattern.midi_notes.forEach((midiNote) => {
-                ctx.fillStyle = "#ffffffaa";
-                
-                // Highlight when played
-                if(currentMidiTick >= midiNote.ticks && currentMidiTick < midiNote.ticks + midiNote.durationTicks) {
-                    ctx.fillStyle = "#ffffffcc";
+            if(midiPattern.loop_until_tick) {
+                for(let i = midiPattern.ticks + midiPattern.durationTicks; i < midiPattern.loop_until_tick; i += midiPattern.durationTicks) {
+                    const loopedPattern = {
+                        ticks: i,
+                        durationTicks: Math.min(midiPattern.durationTicks, midiPattern.loop_until_tick - i),
+                        midi_notes: midiPattern.midi_notes.map(n => ({...n, ...{ticks: n.ticks + i - midiPattern.ticks}}))
+                    }
+                    ctx.fillStyle = isSelected ? SELECTED_COLOR + "33" : ITEM_COLOR + "33"
+                    drawMidiPattern(props, {midiPattern: loopedPattern, currentMidiTick})
                 }
-
-                ctx.fillRect(
-                    ticksOffsetToPixels(midiNote.ticks, ticksScroll, pixelsPerBeat) + 1,
-                    midiKeyToPixelsOffset(midiNote.midi, height, allMidiKeys),
-                    ticksDurationToPixels(midiNote.durationTicks, pixelsPerBeat) - 1,
-                    midiKeyToPixelsHeight(height)
-                )
-            })
-            
+            }
         })
 }
+
+
 
 const drawAimedMidiNote = (props: DrawerFunctionProps, aimedMidiNote: MidiNote) => {
     const { ctx,  height, ticksScroll, pixelsPerBeat, allMidiKeys } = props

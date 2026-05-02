@@ -1,8 +1,7 @@
 export const midiNoteEqual = (a: MidiNote, b: MidiNote) => a.midi == b.midi && a.ticks == b.ticks
 
 export const PPQ = 480
-const NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B']
-export const noteName = (midi: number) => NOTE_NAMES[midi % 12] + (Math.floor(midi / 12) - 1)
+
 
 export const buildRowKeys = (rawKeys: MidiKey[], minRows = 6): MidiKey[] => {
     const valid = [...new Set(rawKeys.filter((k): k is number => typeof k === 'number' && !isNaN(k)))]

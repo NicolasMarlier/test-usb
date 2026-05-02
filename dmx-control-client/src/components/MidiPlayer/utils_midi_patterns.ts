@@ -29,3 +29,13 @@ export const midiPatternsInclude = (midiPatterns: MidiPattern[], midiPattern: Mi
 export const isSelected = (midiPattern: MidiPattern, selectedMidiPatterns: MidiPattern[]) => midiPatternsInclude(
     selectedMidiPatterns, midiPattern
 )
+
+export const sum: (midiPatterns: MidiPattern[]) => MidiPattern = (midiPatterns) => {
+    const ticks = midiPatterns.reduce((min, p) => Math.min(p.ticks, min), midiPatterns[0].ticks)
+    const untilTick = midiPatterns.reduce((max, p) => Math.max(p.ticks + p.durationTicks, max), 0)
+    return {
+        ticks: ticks,
+        durationTicks: untilTick - ticks,
+        midi_notes: midiPatterns.flatMap(p => p.midi_notes)
+    }
+}

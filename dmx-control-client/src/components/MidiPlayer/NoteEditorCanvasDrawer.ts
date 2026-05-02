@@ -1,6 +1,7 @@
+import { humanizeMidiKey } from '../../utils'
 import { drawBeatsGrid, drawCurrentSelection, drawCurrentTick, drawTimeline, ITEM_COLOR, PRIMARY_GRID_COLOR, SELECTED_COLOR, type DrawerFunctionProps } from './GenericCanvasDrawer'
 import { PPQ, setupCanvasDPR, ticksDurationToPixels, ticksOffsetToPixels } from './utils'
-import { midiNotesIncludes, noteName } from './utils_midi_notes'
+import { midiNotesIncludes } from './utils_midi_notes'
 
 export const TIMELINE_HEIGHT = 24
 export const PIANO_KEY_WIDTH = 52
@@ -102,7 +103,7 @@ const drawPianoKeyboard = (props: DrawerFunctionProps) => {
         ctx.font = `bold ${Math.min(10, NOTE_ROW_HEIGHT - 10)}px monospace`
         ctx.textAlign = 'right'
         ctx.textBaseline = 'middle'
-        ctx.fillText(noteName(midiKey), PIANO_KEY_WIDTH - 8, y + NOTE_ROW_HEIGHT / 2)
+        ctx.fillText(humanizeMidiKey(midiKey), PIANO_KEY_WIDTH - 8, y + NOTE_ROW_HEIGHT / 2)
     })
 }
 

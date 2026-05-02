@@ -34,7 +34,7 @@
 [X] Refacto MidiReader
 [X] Better interface
 [X] Move pod logic to channels
-[ ] Icon
+[X] Icon
 
 - M5 Fixes
 [X] Toggle should toggle
@@ -69,6 +69,7 @@
 [X] Reimplent manual edition of notes
 [ ] Fix props naming camelcase VS
 [X] Ability to repeat a pattern
+[X] Ability to join
 
 
 

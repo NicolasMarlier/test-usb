@@ -43,6 +43,20 @@
         border-radius: 3px;
     }
 
+    .color-symbol {
+        position: absolute;
+        width: 10px;
+        height: 10px;
+        bottom: 5px;
+        right: 5px;
+        border-radius: 5px;
+        background-color: #000000aa;
+
+        &.high {
+            bottom: 20px;
+        }
+    }
+
     &.playing {
         .playing-light {
             background-color: #8fdf61;

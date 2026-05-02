@@ -11,7 +11,7 @@ import { addNoteAtTick, insertPatternsAtTick, magnettedTick, nextFreeTick, toggl
 import { PPQ } from './utils.js';
 import CanvasMouseHandler from './CanvasMouseHandler.js';
 import { useDmxMidiContext } from '../../contexts/DmxMidiContext.js';
-import { isSelected, splitPatternsAtTick } from './utils_midi_patterns.js';
+import { isSelected, splitPatternsAtTick, sum } from './utils_midi_patterns.js';
 
 const BEATS_OFFSET = 2
 
@@ -46,6 +46,9 @@ const MidiPlayer = (props: Props) => {
     
     const { midiCurrentTick: serverMidiCurrentTick, lastReceivedMidiKey } = useRealTimeContext()
 
+    const midiCurrentTickRef = useRef(midiCurrentTick)
+    midiCurrentTickRef.current = midiCurrentTick
+
     const canvasRef = useRef<HTMLCanvasElement>(null)
     const mouseSelection = useRef<Rectangle>(null)
 
@@ -59,6 +62,8 @@ const MidiPlayer = (props: Props) => {
     const [canvasRedrawTrigger, setCanvasRedrawTrigger] = useState(0)
 
     const recordingPatternRef = useRef<MidiPattern>(null)
+
+    const shiftPressed = useRef(false)
 
 
     const onMouseSelect = (selection: Rectangle) => {
@@ -75,7 +80,7 @@ const MidiPlayer = (props: Props) => {
     }
 
     const splitAtCurrentTick = () => {
-        updateProgramDmxMidiAndSync(splitPatternsAtTick(midiPatterns, midiCurrentTick))
+        updateProgramDmxMidiAndSync(splitPatternsAtTick(midiPatterns, midiCurrentTickRef.current))
         setSelectedMidiPatterns([])
     }
 
@@ -87,7 +92,7 @@ const MidiPlayer = (props: Props) => {
 
     const deleteSelectedMidiPatterns = () => {
         updateProgramDmxMidiAndSync(
-            midiPatterns.filter(midiPattern => !isSelected(midiPattern, selectedMidiPatterns))
+            midiPatterns.filter(midiPattern => !isSelected(midiPattern, selectedMidiPatternsRef.current))
         )
     }
 
@@ -100,9 +105,18 @@ const MidiPlayer = (props: Props) => {
             insertPatternsAtTick({
                 midiPatterns,
                 midiPatternsToInsert: clipboard.current,
-                tick: midiCurrentTick,
+                tick: midiCurrentTickRef.current,
                 ppq: PPQ
             })
+        )
+    }
+
+    const joinSelection = () => {
+        updateProgramDmxMidiAndSync(
+            [
+                ...midiPatterns.filter(midiPattern => !isSelected(midiPattern, selectedMidiPatternsRef.current)),
+                ...[sum(selectedMidiPatternsRef.current)]
+            ]
         )
     }
 
@@ -120,19 +134,31 @@ const MidiPlayer = (props: Props) => {
         else if(e.key == 'v' && e.metaKey) pasteSelectedMidiPatterns()
         else if(e.key == 'a' && e.metaKey) selectAll()
         else if(e.key == 't') splitAtCurrentTick()
+        else if(e.key == 'j') joinSelection()
         else if(e.key == 'l') toggleLoop()
         else if(e.key == 'ArrowLeft') {
-            const targetTick = (magnettedTick(midiCurrentTick, 1) - PPQ)
+            const targetTick = (magnettedTick(midiCurrentTickRef.current, 1) - PPQ)
             setMidiCurrentTick(targetTick)
             setTicksScroll(targetTick - PPQ)
         }
         else if(e.key == 'ArrowRight') {
-            const targetTick = (magnettedTick(midiCurrentTick, 1) + PPQ)
+            const targetTick = (magnettedTick(midiCurrentTickRef.current, 1) + PPQ)
             setMidiCurrentTick(targetTick)
             setTicksScroll(targetTick - PPQ)
         }
+        else if(e.key == 'Shift') {
+            shiftPressed.current = true
+        }
         else {
             shouldPreventDefault = false
+        }
+        if(shouldPreventDefault) e.preventDefault()
+    }
+    const onKeyUp = (e: KeyboardEvent) => {
+        if(activeEditorRef.current !== 'TrackEditor') return
+        let shouldPreventDefault = true
+        if(e.key == 'Shift') {
+            shiftPressed.current = false
         }
         if(shouldPreventDefault) e.preventDefault()
     }
@@ -152,7 +178,7 @@ const MidiPlayer = (props: Props) => {
             selectedMidiPatterns: selectedMidiPatternsRef.current,
             recordingMidiPattern: recordingPatternRef.current,
             ppq: PPQ,
-            currentMidiTick: midiCurrentTick,
+            currentMidiTick: midiCurrentTickRef.current,
             ticksScroll,
             pixelsPerBeat,
             audioWaveData,
@@ -236,8 +262,10 @@ const MidiPlayer = (props: Props) => {
 
     useEffect(() => {
         document.addEventListener("keydown", onKeyDown)
+        document.addEventListener("keyup", onKeyUp)
         return () => {
             document.removeEventListener("keydown", onKeyDown)
+            document.removeEventListener("keyup", onKeyUp)
         }
     }, [midiPatterns, ticksScroll, aimedMidiNote, midiCurrentTick])
 
@@ -273,7 +301,13 @@ const MidiPlayer = (props: Props) => {
         setActiveEditor('TrackEditor')
         const clickedPattern = midiPatterns.find(p => p.ticks <= tick && p.ticks + p.durationTicks > tick)
         if(clickedPattern) {
-            setSelectedMidiPatterns([clickedPattern])
+            if(shiftPressed.current) {
+                setSelectedMidiPatterns([...selectedMidiPatternsRef.current, ...[clickedPattern]])
+            }
+            else {
+                setSelectedMidiPatterns([clickedPattern])
+            }
+            
         }
         else {
             setSelectedMidiPatterns([])

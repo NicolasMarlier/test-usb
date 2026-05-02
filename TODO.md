@@ -30,10 +30,11 @@
 [X] Better controllers
 [X] Remove program midi filename
 [X] Move signal to midiKey
-[ ] Clean up
-[ ] Refacto MidiReader
-[ ] Better interface
+[X] Clean up
+[X] Refacto MidiReader
+[X] Better interface
 [X] Move pod logic to channels
+[ ] Icon
 
 - M5 Fixes
 [X] Toggle should toggle
@@ -64,10 +65,10 @@
 [X] Copy / paste pattern
 [X] Edit mode by default
 [X] Fix perf issue
-[ ] Reimplement recording
+[X] Reimplement recording
 [X] Reimplent manual edition of notes
 [ ] Fix props naming camelcase VS
-[ ] Ability to repeat a pattern
+[X] Ability to repeat a pattern
 
 
 

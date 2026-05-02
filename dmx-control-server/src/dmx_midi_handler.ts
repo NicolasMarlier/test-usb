@@ -51,7 +51,6 @@ export class DmxMidiHandler {
       return loopedMidiNotes
       
     }).flat()
-    console.log(this.midiNotes)
   }
 
   play = () => {

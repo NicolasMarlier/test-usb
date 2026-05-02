@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+DB_NAME="${DATABASE:-dmx_control}"
+DB_USER="${DB_USER:-postgres}"
+DB_HOST="${DB_HOST:-127.0.0.1}"
+DUMPS_DIR="$(dirname "$0")/../dmx-control-server/dumps"
+mkdir -p "$DUMPS_DIR"
+OUTPUT_FILE="${1:-$DUMPS_DIR/dump_$(date +%Y%m%d_%H%M%S).sql}"
+
+pg_dump -h "$DB_HOST" -U "$DB_USER" "$DB_NAME" > "$OUTPUT_FILE"
+echo "Dumped $DB_NAME to $OUTPUT_FILE"

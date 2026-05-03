@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+DB_NAME="${DATABASE:-dmx_control}"
+DB_USER="${DB_USER:-postgres}"
+DB_HOST="${DB_HOST:-127.0.0.1}"
+
+INPUT_FILE="${1:?Usage: $0 <dump_file>}"
+
+psql -h "$DB_HOST" -U "$DB_USER" "$DB_NAME" < "$INPUT_FILE"
+echo "Loaded $INPUT_FILE into $DB_NAME"

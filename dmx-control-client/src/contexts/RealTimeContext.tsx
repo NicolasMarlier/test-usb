@@ -1,11 +1,10 @@
-import { createContext, useContext, useEffect, useState } from "react"
+import { createContext, useContext, useEffect, useRef, useState, type RefObject } from "react"
 import useWebSocket, { ReadyState } from "react-use-websocket"
 import { useDmxButtonsContext } from "./DmxButtonsContext"
 
 interface RealTimeContextType {
     webSocketReadyState: ReadyState
-    midiCurrentTick: number,
-    setMidiCurrentTick: (tick: number) => void
+    midiCurrentTickRef: RefObject<number>,
     lastReceivedMidiKey: ReceivedMidiKey | undefined
     setLastReceivedMidiKey: (received_midi_key: ReceivedMidiKey | undefined) => void
 
@@ -39,7 +38,7 @@ export const useRealTimeContext = () => {
 export const RealTimeContextProvider = ({ children }: {children: React.ReactNode}) => {
     const { setCurrentProgramId, syncPrograms, programs } = useDmxButtonsContext()
 
-    const [midiCurrentTick, setMidiCurrentTick] = useState(0)
+    const midiCurrentTickRef = useRef(0)
     const [lastReceivedMidiKey, setLastReceivedMidiKey] = useState(
         undefined as ReceivedMidiKey | undefined
     )
@@ -85,7 +84,7 @@ export const RealTimeContextProvider = ({ children }: {children: React.ReactNode
           } = jsonMessage.data
           setEnttecOpenUSBState(state)
           setDmxHexSignal(dmxHexSignal)
-          setMidiCurrentTick(midiCurrentTick)
+          midiCurrentTickRef.current = midiCurrentTick
         }
         else if(jsonMessage.channel === 'control') {
           if(jsonMessage.action == 'change_program') {
@@ -131,8 +130,7 @@ export const RealTimeContextProvider = ({ children }: {children: React.ReactNode
             lastReceivedMidiKey,
             setLastReceivedMidiKey,
             
-            midiCurrentTick,
-            setMidiCurrentTick,
+            midiCurrentTickRef,
 
             sendCurrentTickToServer,
 

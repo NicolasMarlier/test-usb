@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useContext, useEffect, useRef, useState } from "react";
 import { useDmxButtonsContext } from "./DmxButtonsContext";
 import { getProgramDmxMidi, updateProgramDmxMidi } from "../ApiClient";
 
@@ -12,9 +12,6 @@ interface DmxMidiContextType {
     activeEditor: 'TrackEditor' | 'PatternEditor'
     setActiveEditor: (v: 'TrackEditor' | 'PatternEditor') => void
 
-    midiCurrentTick: number,
-    setMidiCurrentTick: (v: number) => void
-
     isRecording: boolean,
     setIsRecording: (v: boolean) => void
 }
@@ -27,7 +24,7 @@ export const useDmxMidiContext = () => {
   if (!dmxMidiContext) {
     throw new Error(
       "useDmxMidiContext has to be used within <RealTimeContext.Provider>"
-    );
+    )
   }
   return dmxMidiContext
 }
@@ -37,7 +34,7 @@ export const DmxMidiContextProvider = ({ children }: {children: React.ReactNode}
     const { currentProgramId, dmxButtons } = useDmxButtonsContext()
     const [selectedMidiPatterns, setSelectedMidiPatterns] = useState<MidiPattern[]>([])
     const [midiPatterns, setMidiPatterns] = useState<MidiPattern[]>([])
-    const [midiCurrentTick, setMidiCurrentTick] = useState(0)
+    const midiCurrentTickRef = useRef(0)
 
     const fetchDmxMidi = () => {
         if(!currentProgramId) return
@@ -91,9 +88,6 @@ export const DmxMidiContextProvider = ({ children }: {children: React.ReactNode}
 
             isRecording,
             setIsRecording,
-
-            midiCurrentTick,
-            setMidiCurrentTick,
             } }>
             {children}
         </DmxMidiContext.Provider>

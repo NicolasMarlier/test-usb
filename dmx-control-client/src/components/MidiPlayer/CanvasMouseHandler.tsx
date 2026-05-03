@@ -1,156 +1,202 @@
-import { useEffect, useRef, type RefObject } from "react";
-import { pixelsOffsetToMidiKeyIndex, xToTicks } from "./utils";
+import { useEffect, type RefObject } from "react";
+import { xToTicks } from "./utils";
+import { useDmxMidiContext } from "../../contexts/DmxMidiContext";
+import { useRealTimeContext } from "../../contexts/RealTimeContext";
 
-interface Props {
-    onClickTimeline: (tick: number) => void
-    onClickMain: (tick: number) => void
-    onClickAudioWave: (tick: number) => void
-    onClick?: () => void
+interface Props<T> {
+    canvasRef: RefObject<HTMLCanvasElement | null>
     ticksScrollRef: RefObject<number>
     pixelsPerBeatRef: RefObject<number>
-    onSelect?: (selection: Rectangle) => void
-    onSelectEnd?: () => void
-    onOver?: (v: {tick: number, midiKeyIndex: number}) => void
-    onMoveTicksScroll?: (tick: number) => void
-    onZoom?: (zoomRatio: number) => void
-    registerAgain: number
+    selectionRef: RefObject<MouseSelection | null>
+    onSelectedItemsChange?: () => void
+    timelineHeight: number,
+    selectedItemsRef: RefObject<T[]>,
+    itemsInRect: (rect: Rectangle) => T[],
+    transformItem: (item: T, x: number, y: number) => T,
+    updateSelectedItems: (items: T[]) => void
+    itemFromXY: (x: number, y: number) => T | undefined,
+    ghostItemRef: RefObject<T | undefined>,
+    x0?: number
 }
-const CanvasMouseHandler = (props: Props) => {
+
+const CanvasMouseHandler = <T,>(props: Props<T>) => {
     const {
+        canvasRef,
         ticksScrollRef,
         pixelsPerBeatRef,
-        onClickTimeline,
-        onClickMain,
-        onClickAudioWave,
-        onClick,
-        onSelect,
-        onSelectEnd,
-        onOver,
-        onMoveTicksScroll,
-        onZoom,
-        registerAgain
+        selectionRef,
+        timelineHeight,
+        selectedItemsRef,
+        onSelectedItemsChange,
+        itemsInRect,
+        transformItem,
+        updateSelectedItems,
+        itemFromXY,
+        ghostItemRef,
+        x0 = 0
     } = props
 
-    const canvas = () => (
-        document.getElementById("midi-canvas") as HTMLCanvasElement
-    )
+    const { setActiveEditor } = useDmxMidiContext()
+    const { sendCurrentTickToServer } = useRealTimeContext()
 
-    const canvasTop = () => canvas().getBoundingClientRect().top
-    const canvasHeight = () => canvas().getBoundingClientRect().height
-    const canvasLeft = () => canvas().getBoundingClientRect().left
-
-    const currentSelection = useRef<Rectangle | undefined>(undefined)
+    const canvasTop = () => canvasRef.current?.getBoundingClientRect().top || 0
+    const canvasLeft = () => canvasRef.current?.getBoundingClientRect().left || 0
     
     const didMouseMovedWhileDown = () => (
-        currentSelection.current && (
-                Math.abs(currentSelection.current.x1 - currentSelection.current.x0) >= 2 ||
-                Math.abs(currentSelection.current.y1 - currentSelection.current.y0) >= 2
+        selectionRef.current && (
+                Math.abs(selectionRef.current.rect.x1 - selectionRef.current.rect.x0) >= 2 ||
+                Math.abs(selectionRef.current.rect.y1 - selectionRef.current.rect.y0) >= 2
         )
     )
 
 
-    const onMouseUp = (event: MouseEvent) => {
-        if(onSelectEnd) onSelectEnd()
-        if(currentSelection.current && !didMouseMovedWhileDown()) {
-            if(onClick) onClick()
+    const onMouseUp = (_event: MouseEvent) => {
+        if(!didMouseMovedWhileDown()) {
+            selectionRef.current = null
+            return
         }
-        currentSelection.current = undefined
+
+        if(selectionRef.current?.mode == 'drag') {
+            const deltaX = selectionRef.current.rect.x1 - selectionRef.current.rect.x0
+            const deltaY = selectionRef.current.rect.y1 - selectionRef.current.rect.y0
+            updateSelectedItems(
+                selectedItemsRef.current.map(i => transformItem(i, deltaX, deltaY))
+            )
+        }
+        else if(ghostItemRef.current) {
+            updateSelectedItems([ghostItemRef.current])
+        }
+        selectionRef.current = null
+        
     }
 
-    const rawXToTicks = (x: number) => xToTicks({
+    const magnetXToTicks = (x: number) => xToTicks({
         x,
         ticksScroll: ticksScrollRef.current,
         pixelsPerBeat: pixelsPerBeatRef.current,
         magnet: true,
-        magnetMode: 'line'
+        magnetMode: 'line',
+        x0,
     })
 
+    const setSelectedItems = (items: T[]) => {
+        selectedItemsRef.current = items
+        if(onSelectedItemsChange) onSelectedItemsChange()
+    }
+
     const onMouseDown = (event: MouseEvent) => {
+        setActiveEditor('TrackEditor')
+
         if(event.clientY - canvasTop() >= 0 &&
-            event.clientY - canvasTop() < canvasHeight() / 5 &&
-            onClickTimeline) {
+            event.clientY - canvasTop() < timelineHeight) {
             
-            currentSelection.current = undefined
-            onClickTimeline(rawXToTicks(event.clientX - canvasLeft()))
-            
-            return
+            selectionRef.current = null
+            sendCurrentTickToServer(magnetXToTicks(event.clientX - canvasLeft()))
         }
-        else if(event.clientY - canvasTop() > canvasHeight() / 5 &&
-            event.clientY - canvasTop() < 3 * canvasHeight() / 5) {
-            currentSelection.current = undefined
-            onClickMain(rawXToTicks(event.clientX - canvasLeft()))
-        } 
-        else {
-            onClickAudioWave(rawXToTicks(event.clientX - canvasLeft()))
-            currentSelection.current = {
-                x0: event.clientX - canvasLeft(),
-                y0: event.clientY - canvasTop(),
-                x1: event.clientX - canvasLeft(),
-                y1: event.clientY - canvasTop(),
+        else if(event.clientY - canvasTop() > timelineHeight) {
+            const x = event.clientX - canvasLeft()
+            const y = event.clientY - canvasTop()
+            const items = itemsInRect({x0:x, y0:y, x1: x, y1: y})
+
+            if(items.length == 0) {
+                setSelectedItems([])
+                selectionRef.current = {
+                    mode: 'select',
+                    rect: {
+                        x0: event.clientX - canvasLeft(),
+                        y0: event.clientY - canvasTop(),
+                        x1: event.clientX - canvasLeft(),
+                        y1: event.clientY - canvasTop(),
+                    }
+                }
             }
+            else {
+                if(event.shiftKey) {
+                    setSelectedItems([...selectedItemsRef.current, ...items])
+                }
+                else {
+                    setSelectedItems(items)
+                }
+                selectionRef.current = {
+                    mode: 'drag',
+                    rect: {
+                        x0: event.clientX - canvasLeft(),
+                        y0: event.clientY - canvasTop(),
+                        x1: event.clientX - canvasLeft(),
+                        y1: event.clientY - canvasTop(),
+                    }
+                }
+            }            
         }
     }
 
     const onMouseDownMove = (event: MouseEvent) => {
-        if(didMouseMovedWhileDown()) {
-            if(onOver) onOver({tick: 0, midiKeyIndex: -1})
-        }
+        ghostItemRef.current = undefined
 
-        if(currentSelection.current) {
-            currentSelection.current = {
-                x0: currentSelection.current.x0,
-                y0: currentSelection.current.y0,
-                x1: event.clientX - canvasLeft(),
-                y1: event.clientY - canvasTop(),
+        if(selectionRef.current) {
+            selectionRef.current = {
+                mode: selectionRef.current.mode,
+                rect: {
+                    x0: selectionRef.current.rect.x0,
+                    y0: selectionRef.current.rect.y0,
+                    x1: event.clientX - canvasLeft(),
+                    y1: event.clientY - canvasTop(),
+                }
             }
-            if(onSelect) onSelect(currentSelection.current)
+            if(selectionRef.current.mode == 'select') {
+                setSelectedItems(itemsInRect(selectionRef.current.rect))
+            }
         }
-        
     }
 
     const onMouseMove = (event: MouseEvent) => (
-        currentSelection.current ? onMouseDownMove : onMouseUpMove
+        !selectionRef.current ? onMouseUpMove : onMouseDownMove
     )(event)
 
     const onMouseUpMove = (event: MouseEvent) => {
-        if(!onOver) return
-
-        onOver({
-            tick: xToTicks({
-                x: event.clientX - canvasLeft(),
-                ticksScroll: ticksScrollRef.current,
-                pixelsPerBeat: pixelsPerBeatRef.current,
-                magnet: true
-            }),
-            midiKeyIndex: pixelsOffsetToMidiKeyIndex(
-                event.clientY - canvasTop(),
-                canvasHeight()
+        if(itemsInRect({
+            x0: event.clientX - canvasLeft(),
+            y0: event.clientY - canvasTop(),
+            x1: event.clientX - canvasLeft(),
+            y1: event.clientY - canvasTop()
+        }).length > 0) {
+            ghostItemRef.current = undefined
+        }
+        else {
+            ghostItemRef.current = itemFromXY(
+                event.clientX - canvasLeft(),
+                event.clientY - canvasTop()
             )
-        })
+        }
     }
 
     const onWheel = (e: WheelEvent) => {
         e.preventDefault()
+        setActiveEditor('TrackEditor')
         
-        if(onMoveTicksScroll && Math.abs(e.deltaX) > Math.abs(e.deltaY) && e.deltaX != 0) {
-            onMoveTicksScroll((e.deltaX) * 10)
+        if(Math.abs(e.deltaX) > Math.abs(e.deltaY) && e.deltaX != 0) {
+            const scrollAmount = (e.deltaX) * 1000
+            ticksScrollRef.current = Math.max(0, ticksScrollRef.current + scrollAmount / pixelsPerBeatRef.current)
         }
-        else if(onZoom && e.deltaY != 0) onZoom(1 + (e.deltaY) * 0.01)
+        else if(e.deltaY != 0) {
+            const zoomRatio = 1 + (e.deltaY) * 0.01
+            pixelsPerBeatRef.current =  Math.min(Math.max(2, pixelsPerBeatRef.current*zoomRatio), 200)
+        }
     }
     
 
     useEffect(() => {
         document.addEventListener('mouseup', onMouseUp)
         document.addEventListener('mousemove', onMouseMove)
-        canvas().addEventListener('mousedown', onMouseDown)
-        canvas().addEventListener('wheel', onWheel, {passive: false})
+        canvasRef.current?.addEventListener('mousedown', onMouseDown)
+        canvasRef.current?.addEventListener('wheel', onWheel, {passive: false})
         return () => {
             document.removeEventListener("mouseup", onMouseUp);
             document.removeEventListener("mousemove", onMouseMove);
-            canvas().removeEventListener('mousedown', onMouseDown)
-            canvas().removeEventListener('wheel', onWheel)
+            canvasRef.current?.removeEventListener('mousedown', onMouseDown)
+            canvasRef.current?.removeEventListener('wheel', onWheel)
         }
-    }, [registerAgain])
+    }, [])
 
     return <></>
 }

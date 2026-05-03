@@ -5,12 +5,10 @@ import { useDmxButtonsContext } from "../../contexts/DmxButtonsContext"
 import { getProgramAudio } from "../../ApiClient"
 import { tickToTime, timeToTick } from "./utils"
 import { useRealTimeContext } from "../../contexts/RealTimeContext"
-import { useDmxMidiContext } from "../../contexts/DmxMidiContext"
 
 const AudioPlayer = () => {
     const { program } = useDmxButtonsContext()
-    const { sendCurrentTickToServer } = useRealTimeContext()
-    const { midiCurrentTick } = useDmxMidiContext()
+    const { midiCurrentTickRef, sendCurrentTickToServer } = useRealTimeContext()
     const [isPlaying, setIsPlaying] = useState(false)
 
     const [audioUrl, setAudioUrl] = useState<string | undefined>(undefined)
@@ -27,14 +25,6 @@ const AudioPlayer = () => {
 
     useEffect(fetchAudioUrl, [program])
 
-    useEffect(() => {
-        if(!program) return
-        if(!audioRef.current) return
-        if(!audioRef.current.paused) return
-
-        audioRef.current.currentTime = tickToTime(midiCurrentTick, program.bpm)
-    }, [midiCurrentTick])
-
     const audioRef = useRef<HTMLAudioElement>(null)
 
     const pause = () => {
@@ -44,7 +34,11 @@ const AudioPlayer = () => {
     }
 
     const play = () => {
-        if(!audioRef.current) return 
+        if(!audioRef.current) return
+
+        if(program) {
+            audioRef.current.currentTime = tickToTime(midiCurrentTickRef.current, program.bpm)
+        }
         audioRef.current.play()
         setIsPlaying(true)
     }

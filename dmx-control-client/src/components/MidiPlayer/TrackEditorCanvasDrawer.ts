@@ -12,8 +12,9 @@ interface Props {
     allMidiKeys: MidiKey[]
     selectedMidiPatterns: MidiPattern[]
     currentMidiTick: number
-    aimedMidiNote: MidiNote | null
-    mouseSelection: Rectangle | null
+    ghostMidiPattern: MidiPattern | undefined
+    mouseSelection: MouseSelection | null
+    transformMidiPattern: (midiPattern: MidiPattern, x: number, y: number) => MidiPattern
 }
 
 
@@ -70,14 +71,29 @@ const drawMidiPattern = (props: DrawerFunctionProps, params: {midiPattern: MidiP
     })
 }
 
-const drawMidiPatterns = (props: DrawerFunctionProps, params: {midiPatterns: MidiPattern[], selectedMidiPatterns: MidiPattern[], currentMidiTick: number}) => {
+
+interface DrawMidiPatternsArgs {
+    midiPatterns: MidiPattern[],
+    selectedMidiPatterns: MidiPattern[],
+    currentMidiTick: number,
+    mouseSelection: MouseSelection | null
+    transformMidiPattern: (midiPattern: MidiPattern, x: number, y: number) => MidiPattern
+}
+
+const drawMidiPatterns = (props: DrawerFunctionProps, params: DrawMidiPatternsArgs) => {
     const { ctx } = props
-    const { midiPatterns, selectedMidiPatterns, currentMidiTick } = params
+    const { midiPatterns, selectedMidiPatterns, currentMidiTick, mouseSelection, transformMidiPattern } = params
     midiPatterns.forEach((midiPattern) => {
             const isSelected = selectedMidiPatterns.find((n) => n.ticks == midiPattern.ticks)
             ctx.fillStyle = isSelected ? SELECTED_COLOR : ITEM_COLOR
             
-            drawMidiPattern(props, {midiPattern, currentMidiTick})
+            const draggableMidiPattern = mouseSelection?.mode == 'drag' && isSelected ? transformMidiPattern(
+                midiPattern,
+                mouseSelection.rect.x1 - mouseSelection.rect.x0,
+                mouseSelection.rect.y1 - mouseSelection.rect.y0
+            ) : midiPattern
+            
+            drawMidiPattern(props, {midiPattern: draggableMidiPattern, currentMidiTick})
             
             
             if(midiPattern.loop_until_tick) {
@@ -107,15 +123,8 @@ const drawRecordingMidiPattern = (props: DrawerFunctionProps, args: {recordingMi
 
 
 
-const drawAimedMidiNote = (props: DrawerFunctionProps, aimedMidiNote: MidiNote) => {
-    const { ctx,  height, ticksScroll, pixelsPerBeat, allMidiKeys } = props
-    ctx.fillStyle = "#ffffff11";
-        ctx.fillRect(
-        ticksOffsetToPixels(aimedMidiNote.ticks, ticksScroll, pixelsPerBeat) + 1,
-        midiKeyToPixelsOffset(aimedMidiNote.midi, height, allMidiKeys),
-        ticksDurationToPixels(aimedMidiNote.durationTicks, pixelsPerBeat) - 1,
-        midiKeyToPixelsHeight(height)
-    )
+const drawGhostMidiPattern = (props: DrawerFunctionProps, ghostMidiPattern: MidiPattern) => {
+    drawMidiPattern(props, {midiPattern: ghostMidiPattern, currentMidiTick: -1})
 }
 
 
@@ -125,10 +134,11 @@ export const redrawFullCanvas = (props: Props) => {
             midiPatterns,
             recordingMidiPattern,
             audioWaveData,
-            aimedMidiNote,
+            ghostMidiPattern,
             selectedMidiPatterns,
             currentMidiTick,
-            mouseSelection
+            mouseSelection,
+            transformMidiPattern
         } = props
 
         const ctx = canvas.getContext("2d")
@@ -157,11 +167,10 @@ export const redrawFullCanvas = (props: Props) => {
         drawTimeline(drawerFunctionProps)
         
         // Middle part
-        
-        drawMidiPatterns(drawerFunctionProps, {midiPatterns, selectedMidiPatterns, currentMidiTick})
+        drawMidiPatterns(drawerFunctionProps, {midiPatterns, selectedMidiPatterns, currentMidiTick, mouseSelection, transformMidiPattern})
         if(recordingMidiPattern) drawRecordingMidiPattern(drawerFunctionProps, {recordingMidiPattern, currentMidiTick})
-        if(aimedMidiNote) {
-            drawAimedMidiNote(drawerFunctionProps, aimedMidiNote)
+        if(ghostMidiPattern) {
+            drawGhostMidiPattern(drawerFunctionProps, ghostMidiPattern)
         }
 
         // Bottom part
@@ -169,7 +178,7 @@ export const redrawFullCanvas = (props: Props) => {
 
         // Overlay
         drawCurrentTick(drawerFunctionProps, currentMidiTick)
-        if(mouseSelection) {
-            drawCurrentSelection(drawerFunctionProps, mouseSelection)
+        if(mouseSelection?.mode == 'select') {
+            drawCurrentSelection(drawerFunctionProps, mouseSelection.rect)
         }
     }

@@ -94,3 +94,8 @@ type Rectangle = {
 type IncomingWsPayload = any
 
 type OutgoingWsPayload = DmxMidiControlClientToServerWsPayload
+
+type MouseSelection = {
+    mode: 'drag' | 'select',
+    rect: Rectangle
+}

@@ -1,6 +1,6 @@
 import { humanizeMidiKey } from '../../utils'
 import { drawBeatsGrid, drawCurrentSelection, drawCurrentTick, drawTimeline, ITEM_COLOR, PRIMARY_GRID_COLOR, SELECTED_COLOR, type DrawerFunctionProps } from './GenericCanvasDrawer'
-import { PPQ, setupCanvasDPR, ticksDurationToPixels, ticksOffsetToPixels } from './utils'
+import { PPQ, setupCanvasDPR, ticksDurationToPixels, ticksOffsetToPixels, xToTicks } from './utils'
 import { midiNotesIncludes } from './utils_midi_notes'
 
 export const TIMELINE_HEIGHT = 24
@@ -14,11 +14,12 @@ interface Props {
     ticksScroll: number
     pixelsPerBeat: number
     selectedNotes: MidiNote[]
-    ghostNote: MidiNote | null
-    selectionRect: Rectangle | null
+    ghostNote: MidiNote | undefined
+    mouseSelection: MouseSelection | null
     dragDeltaTicks: number
     dragDeltaRow: number
     currentMidiTick: number
+    transformMidiNote: (midiNote: MidiNote, x: number, y: number) => MidiNote
 }
 
 const rowToY = (row: number) => TIMELINE_HEIGHT + row * NOTE_ROW_HEIGHT
@@ -35,21 +36,21 @@ const drawMidiKeysGrid = (props: DrawerFunctionProps) => {
 interface DrawMidiNotesArgs {
     midiNotes: MidiNote[]
     selectedMidiNotes: MidiNote[]
-    dragDeltaRow: number
-    dragDeltaTicks: number
+    mouseSelection: MouseSelection | null
+    transformMidiNote: (midiNote: MidiNote, x: number, y: number) => MidiNote
 }
+
 const drawMidiNotes = (props: DrawerFunctionProps, args: DrawMidiNotesArgs) => {
-    const { allMidiKeys } = props
-    const { midiNotes, selectedMidiNotes, dragDeltaRow, dragDeltaTicks } = args
+    const { midiNotes, selectedMidiNotes, mouseSelection, transformMidiNote } = args
 
     midiNotes.forEach(note => {
         const isSelected = midiNotesIncludes(selectedMidiNotes, note)
 
-        const draggableNote = isSelected ? {
-            ticks: note.ticks + dragDeltaTicks,
-            midi: allMidiKeys[allMidiKeys.indexOf(note.midi) + dragDeltaRow],
-            durationTicks: note.durationTicks,
-        } : note
+        const draggableNote = mouseSelection?.mode == 'drag' && isSelected ? transformMidiNote(
+            note,
+            mouseSelection.rect.x1 - mouseSelection.rect.x0,
+            mouseSelection.rect.y1 - mouseSelection.rect.y0
+        ) : note
 
         drawMidiNote(props, {note: draggableNote, fillColor: isSelected ? SELECTED_COLOR : ITEM_COLOR})
     })
@@ -59,6 +60,22 @@ interface DrawNoteArgs {
     note: MidiNote
     fillColor: string
     strokeColor?: string
+}
+
+export const midiNoteToRectangle = (midiNote: MidiNote, ticksScroll: number, pixelsPerBeat: number, allMidiKeys: MidiKey[]) => {
+    const rowIndex = (allMidiKeys || []).indexOf(midiNote.midi)
+    
+
+    const x = ticksOffsetToPixels(midiNote.ticks, ticksScroll, pixelsPerBeat, PIANO_KEY_WIDTH)
+    const y = rowToY(rowIndex)
+    const w = ticksDurationToPixels(midiNote.durationTicks, pixelsPerBeat) - 1
+    const h = NOTE_ROW_HEIGHT - 1
+    return {
+        x0: x,
+        y0: y,
+        x1: x + w,
+        y1: y + h
+    }
 }
 const drawMidiNote = (props: DrawerFunctionProps, args: DrawNoteArgs) => {
     const {ctx, allMidiKeys, pixelsPerBeat, ticksScroll} = props
@@ -110,8 +127,11 @@ const drawPianoKeyboard = (props: DrawerFunctionProps) => {
 export const redrawNoteEditor = (props: Props) => {
     const {
         canvas, pattern, sortedMidiKeys,
-        selectedNotes, ghostNote, selectionRect, dragDeltaTicks, dragDeltaRow,
-        currentMidiTick
+        selectedNotes, ghostNote, mouseSelection,
+        currentMidiTick,
+        transformMidiNote,
+        ticksScroll,
+        pixelsPerBeat
     } = props
 
     const ctx = canvas.getContext('2d')
@@ -134,9 +154,13 @@ export const redrawNoteEditor = (props: Props) => {
 
     // Background
     ctx.fillStyle = '#222'
-    ctx.fillRect(0, 0, cssWidth, cssHeight)
-    ctx.fillStyle = '#181818'
-    ctx.fillRect(0, 0, cssWidth, TIMELINE_HEIGHT)
+    ctx.fillRect(
+        ticksOffsetToPixels(pattern.ticks, ticksScroll, pixelsPerBeat, PIANO_KEY_WIDTH),
+        0,
+        ticksDurationToPixels(pattern.durationTicks, pixelsPerBeat),
+        cssHeight
+    )
+    
 
     drawMidiKeysGrid(drawerFunctionProps)
     drawBeatsGrid(drawerFunctionProps)
@@ -146,12 +170,12 @@ export const redrawNoteEditor = (props: Props) => {
     drawMidiNotes(drawerFunctionProps, {
         midiNotes: pattern.midi_notes,
         selectedMidiNotes: selectedNotes,
-        dragDeltaRow,
-        dragDeltaTicks
+        mouseSelection,
+        transformMidiNote
     })  
     if (ghostNote) drawGhostNote(drawerFunctionProps, ghostNote)
 
     drawCurrentTick(drawerFunctionProps, currentMidiTick)
-    if (selectionRect) { drawCurrentSelection(drawerFunctionProps, selectionRect) }
+    if (mouseSelection?.mode == 'select') { drawCurrentSelection(drawerFunctionProps, mouseSelection.rect) }
     drawPianoKeyboard(drawerFunctionProps)
 }

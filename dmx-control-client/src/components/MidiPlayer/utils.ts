@@ -20,15 +20,14 @@ export const ticksDurationToPixels = (ticksDuration: number, pixelsPerBeat: numb
 export const ticksOffsetToPixels = (tick: number, ticksScroll: number, pixelsPerBeat: number, baseOffset=0) =>
     ticksDurationToPixels(tick -  ticksScroll, pixelsPerBeat) + baseOffset
 
-export const xToTicks = (props: {x: number, ticksScroll: number, pixelsPerBeat: number, x0?: number, magnet?: boolean, magnetMode?: 'line'}) => {
-    const { x, ticksScroll, pixelsPerBeat, x0, magnet, magnetMode } = props
+export const xToTicks = (props: {x: number, ticksScroll: number, pixelsPerBeat: number, x0?: number, magnet?: boolean, magnetBeats?: number, magnetMode?: 'line'}) => {
+    const { x, ticksScroll, pixelsPerBeat, x0, magnet, magnetMode, magnetBeats=0.25 } = props
     const aimedTick = ((x - (x0 || 0)) / pixelsPerBeat * PPQ + ticksScroll)
     if(magnet) {
-        const beatMagnet = 0.25
         if(magnetMode == 'line') {
-            return PPQ * Math.round((aimedTick / PPQ) / beatMagnet) * beatMagnet
+            return PPQ * Math.round((aimedTick / PPQ) / magnetBeats) * magnetBeats
         }
-        return PPQ * Math.floor((aimedTick / PPQ) / beatMagnet) * beatMagnet
+        return PPQ * Math.floor((aimedTick / PPQ) / magnetBeats) * magnetBeats
     }
     return aimedTick
 }
@@ -93,13 +92,13 @@ export const midiPatternToRectangle = (midiPattern: MidiPattern, height: number,
     y1: height * 3 / 5
 })
 
-export const doRectanglesInteresect = (rectangleA: Rectangle, rectangleB: Rectangle) => (
+export const doRectanglesIntersect = (rectangleA: Rectangle, rectangleB: Rectangle) => (
     doSegmentsIntersect([rectangleA.x0, rectangleA.x1], [rectangleB.x0, rectangleB.x1]) &&
     doSegmentsIntersect([rectangleA.y0, rectangleA.y1], [rectangleB.y0, rectangleB.y1])
 )
 
 export const isMidiNoteInRectangle = (selection: Rectangle, midiNote: MidiNote, height: number, midiKeys: MidiKey[], ticksScroll: number, pixelsPerBeat: number) => (
-    doRectanglesInteresect(selection, midiNoteToRectangle(midiNote, height, midiKeys, ticksScroll, pixelsPerBeat))
+    doRectanglesIntersect(selection, midiNoteToRectangle(midiNote, height, midiKeys, ticksScroll, pixelsPerBeat))
 )
 export const computedSelectedNotes = (selection: Rectangle, midiNotes: MidiNote[], height: number, midiKeys: MidiKey[], ticksScroll: number, pixelsPerBeat: number) => (
     midiNotes.filter(midiNote => isMidiNoteInRectangle(selection, midiNote, height, midiKeys, ticksScroll, pixelsPerBeat))

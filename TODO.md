@@ -72,9 +72,9 @@
 [X] Ability to join
 
 Bugs
-[ ] Delete / keyboard input on input field
+[X] Delete / keyboard input on input field
 [X] Small display as Mainstage companion
-
+[X] Select + drag should work as expected
 
 
 

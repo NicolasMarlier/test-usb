@@ -16,6 +16,7 @@ interface Props<T> {
     updateSelectedItems: (items: T[]) => void
     itemFromXY: (x: number, y: number) => T | undefined,
     ghostItemRef: RefObject<T | undefined>,
+    isItemInSelection?: (item: T, selectedItems: T[]) => boolean,
     x0?: number
 }
 
@@ -33,6 +34,7 @@ const CanvasMouseHandler = <T,>(props: Props<T>) => {
         updateSelectedItems,
         itemFromXY,
         ghostItemRef,
+        isItemInSelection = (item: T, selected: T[]) => selected.includes(item),
         x0 = 0
     } = props
 
@@ -111,10 +113,11 @@ const CanvasMouseHandler = <T,>(props: Props<T>) => {
                 }
             }
             else {
+                const clickedItemAlreadySelected = items.some(item => isItemInSelection(item, selectedItemsRef.current))
                 if(event.shiftKey) {
                     setSelectedItems([...selectedItemsRef.current, ...items])
                 }
-                else {
+                else if(!clickedItemAlreadySelected) {
                     setSelectedItems(items)
                 }
                 selectionRef.current = {

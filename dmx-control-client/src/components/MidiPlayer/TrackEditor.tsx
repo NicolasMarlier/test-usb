@@ -326,7 +326,8 @@ const MidiPlayer = (props: Props) => {
                     transformItem={transformMidiPattern}
                     updateSelectedItems={updateSelectedMidiPatterns}
                     itemFromXY={patternFromXY}
-                    ghostItemRef={ghostMidiPatternRef}/>
+                    ghostItemRef={ghostMidiPatternRef}
+                    isItemInSelection={(item, selected) => midiPatternsInclude(selected, item)}/>
             </Draggable>
         </div>
         

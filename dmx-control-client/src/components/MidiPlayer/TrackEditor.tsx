@@ -54,7 +54,7 @@ const MidiPlayer = (props: Props) => {
 
     const ticksScrollRef = useRef(0)
 
-    const [pixelsPerBeat, setPixelsPerBeat] = useState(BASE_PIXELS_PER_BEAT)
+    const pixelsPerBeatRef = useRef(BASE_PIXELS_PER_BEAT)
 
     const [audioWaveData, setAudioWaveData] = useState(new Uint8Array() as Uint8Array)
 
@@ -183,7 +183,7 @@ const MidiPlayer = (props: Props) => {
             ppq: PPQ,
             currentMidiTick: midiCurrentTickRef.current,
             ticksScroll: ticksScrollRef.current,
-            pixelsPerBeat,
+            pixelsPerBeat: pixelsPerBeatRef.current,
             audioWaveData,
             allMidiKeys,
             mouseSelection: mouseSelection.current,
@@ -194,12 +194,13 @@ const MidiPlayer = (props: Props) => {
     const triggerCanvasRedraw = () => setCanvasRedrawTrigger(p => p+1)
 
     const onMoveTicksScroll = (tickDelta: number) => {
-        ticksScrollRef.current = Math.max(-BEATS_OFFSET * PPQ, ticksScrollRef.current + tickDelta * BASE_PIXELS_PER_BEAT / pixelsPerBeat)
+        ticksScrollRef.current = Math.max(-BEATS_OFFSET * PPQ, ticksScrollRef.current + tickDelta * BASE_PIXELS_PER_BEAT / pixelsPerBeatRef.current)
         triggerCanvasRedraw()
     }
 
     const onZoom = (zoomRatio: number) => {
-        setPixelsPerBeat(prev => Math.min(Math.max(2, prev*zoomRatio), BASE_PIXELS_PER_BEAT*2))
+        pixelsPerBeatRef.current =  Math.min(Math.max(2, pixelsPerBeatRef.current*zoomRatio), BASE_PIXELS_PER_BEAT*2)
+        triggerCanvasRedraw()
     }
 
     const onDropAudioFile = (file: File) => {
@@ -260,7 +261,7 @@ const MidiPlayer = (props: Props) => {
 
     useEffect(() => {
         triggerCanvasRedraw()
-    }, [midiCurrentTick, audioWaveData, midiPatterns, isRecording, pixelsPerBeat])
+    }, [midiCurrentTick, audioWaveData, midiPatterns, isRecording])
 
     
 
@@ -363,7 +364,7 @@ const MidiPlayer = (props: Props) => {
                     onClickMain={onClickMain}
                     onClickAudioWave={onClickAudioWave}
                     ticksScrollRef={ticksScrollRef}
-                    pixelsPerBeat={pixelsPerBeat}
+                    pixelsPerBeatRef={pixelsPerBeatRef}
                     onSelect={onMouseSelect}
                     onSelectEnd={onMouseSelectEnd}
                     onMoveTicksScroll={onMoveTicksScroll}

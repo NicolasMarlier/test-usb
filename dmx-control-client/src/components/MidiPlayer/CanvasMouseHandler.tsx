@@ -7,7 +7,7 @@ interface Props {
     onClickAudioWave: (tick: number) => void
     onClick?: () => void
     ticksScrollRef: RefObject<number>
-    pixelsPerBeat: number
+    pixelsPerBeatRef: RefObject<number>
     onSelect?: (selection: Rectangle) => void
     onSelectEnd?: () => void
     onOver?: (v: {tick: number, midiKeyIndex: number}) => void
@@ -18,7 +18,7 @@ interface Props {
 const CanvasMouseHandler = (props: Props) => {
     const {
         ticksScrollRef,
-        pixelsPerBeat,
+        pixelsPerBeatRef,
         onClickTimeline,
         onClickMain,
         onClickAudioWave,
@@ -60,7 +60,7 @@ const CanvasMouseHandler = (props: Props) => {
     const rawXToTicks = (x: number) => xToTicks({
         x,
         ticksScroll: ticksScrollRef.current,
-        pixelsPerBeat,
+        pixelsPerBeat: pixelsPerBeatRef.current,
         magnet: true,
         magnetMode: 'line'
     })
@@ -119,7 +119,7 @@ const CanvasMouseHandler = (props: Props) => {
             tick: xToTicks({
                 x: event.clientX - canvasLeft(),
                 ticksScroll: ticksScrollRef.current,
-                pixelsPerBeat,
+                pixelsPerBeat: pixelsPerBeatRef.current,
                 magnet: true
             }),
             midiKeyIndex: pixelsOffsetToMidiKeyIndex(

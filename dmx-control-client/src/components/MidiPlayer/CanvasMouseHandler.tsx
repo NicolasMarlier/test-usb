@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, type RefObject } from "react";
 import { pixelsOffsetToMidiKeyIndex, xToTicks } from "./utils";
 
 interface Props {
@@ -6,7 +6,7 @@ interface Props {
     onClickMain: (tick: number) => void
     onClickAudioWave: (tick: number) => void
     onClick?: () => void
-    ticksScroll: number
+    ticksScrollRef: RefObject<number>
     pixelsPerBeat: number
     onSelect?: (selection: Rectangle) => void
     onSelectEnd?: () => void
@@ -17,7 +17,7 @@ interface Props {
 }
 const CanvasMouseHandler = (props: Props) => {
     const {
-        ticksScroll,
+        ticksScrollRef,
         pixelsPerBeat,
         onClickTimeline,
         onClickMain,
@@ -59,7 +59,7 @@ const CanvasMouseHandler = (props: Props) => {
 
     const rawXToTicks = (x: number) => xToTicks({
         x,
-        ticksScroll,
+        ticksScroll: ticksScrollRef.current,
         pixelsPerBeat,
         magnet: true,
         magnetMode: 'line'
@@ -118,7 +118,7 @@ const CanvasMouseHandler = (props: Props) => {
         onOver({
             tick: xToTicks({
                 x: event.clientX - canvasLeft(),
-                ticksScroll,
+                ticksScroll: ticksScrollRef.current,
                 pixelsPerBeat,
                 magnet: true
             }),

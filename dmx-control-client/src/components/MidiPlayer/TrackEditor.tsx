@@ -52,7 +52,8 @@ const MidiPlayer = (props: Props) => {
     const canvasRef = useRef<HTMLCanvasElement>(null)
     const mouseSelection = useRef<Rectangle>(null)
 
-    const [ticksScroll, setTicksScroll] = useState(midiCurrentTick - BEATS_OFFSET * PPQ)
+    const ticksScrollRef = useRef(0)
+
     const [pixelsPerBeat, setPixelsPerBeat] = useState(BASE_PIXELS_PER_BEAT)
 
     const [audioWaveData, setAudioWaveData] = useState(new Uint8Array() as Uint8Array)
@@ -139,12 +140,14 @@ const MidiPlayer = (props: Props) => {
         else if(e.key == 'ArrowLeft') {
             const targetTick = Math.max(0, magnettedTick(midiCurrentTickRef.current, 1) - PPQ)
             setMidiCurrentTick(targetTick)
-            setTicksScroll(targetTick - PPQ)
+            ticksScrollRef.current = targetTick - BEATS_OFFSET * PPQ
+            triggerCanvasRedraw()
         }
         else if(e.key == 'ArrowRight') {
             const targetTick = (magnettedTick(midiCurrentTickRef.current, 1) + PPQ)
             setMidiCurrentTick(targetTick)
-            setTicksScroll(targetTick - PPQ)
+            ticksScrollRef.current = targetTick - BEATS_OFFSET * PPQ
+            triggerCanvasRedraw()
         }
         else if(e.key == 'Shift') {
             shiftPressed.current = true
@@ -179,7 +182,7 @@ const MidiPlayer = (props: Props) => {
             recordingMidiPattern: recordingPatternRef.current,
             ppq: PPQ,
             currentMidiTick: midiCurrentTickRef.current,
-            ticksScroll,
+            ticksScroll: ticksScrollRef.current,
             pixelsPerBeat,
             audioWaveData,
             allMidiKeys,
@@ -191,7 +194,8 @@ const MidiPlayer = (props: Props) => {
     const triggerCanvasRedraw = () => setCanvasRedrawTrigger(p => p+1)
 
     const onMoveTicksScroll = (tickDelta: number) => {
-        setTicksScroll(prev => Math.max(-BEATS_OFFSET * PPQ, prev + tickDelta * BASE_PIXELS_PER_BEAT / pixelsPerBeat))
+        ticksScrollRef.current = Math.max(-BEATS_OFFSET * PPQ, ticksScrollRef.current + tickDelta * BASE_PIXELS_PER_BEAT / pixelsPerBeat)
+        triggerCanvasRedraw()
     }
 
     const onZoom = (zoomRatio: number) => {
@@ -256,7 +260,7 @@ const MidiPlayer = (props: Props) => {
 
     useEffect(() => {
         triggerCanvasRedraw()
-    }, [midiCurrentTick, ticksScroll, audioWaveData, midiPatterns, isRecording, pixelsPerBeat])
+    }, [midiCurrentTick, audioWaveData, midiPatterns, isRecording, pixelsPerBeat])
 
     
 
@@ -267,7 +271,7 @@ const MidiPlayer = (props: Props) => {
             document.removeEventListener("keydown", onKeyDown)
             document.removeEventListener("keyup", onKeyUp)
         }
-    }, [midiPatterns, ticksScroll, aimedMidiNote, midiCurrentTick])
+    }, [midiPatterns, aimedMidiNote, midiCurrentTick])
 
 
     const [audioUrl, setAudioUrl] = useState<string | undefined>(undefined)
@@ -323,7 +327,8 @@ const MidiPlayer = (props: Props) => {
     useEffect(() => {
         if(midiCurrentTick != serverMidiCurrentTick) {
             setMidiCurrentTick(serverMidiCurrentTick)
-            setTicksScroll(serverMidiCurrentTick - BEATS_OFFSET * PPQ)
+            ticksScrollRef.current = serverMidiCurrentTick - BEATS_OFFSET * PPQ
+            triggerCanvasRedraw()
         }
     }, [serverMidiCurrentTick, dmxButtons, midiPatterns])
 
@@ -357,7 +362,7 @@ const MidiPlayer = (props: Props) => {
                     onClickTimeline={onClickTimeline}
                     onClickMain={onClickMain}
                     onClickAudioWave={onClickAudioWave}
-                    ticksScroll={ticksScroll}
+                    ticksScrollRef={ticksScrollRef}
                     pixelsPerBeat={pixelsPerBeat}
                     onSelect={onMouseSelect}
                     onSelectEnd={onMouseSelectEnd}
